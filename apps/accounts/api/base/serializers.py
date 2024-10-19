@@ -102,7 +102,7 @@ class BaseUserSerializer(serializers.ModelSerializer):
             company_code = validated_data.pop("code")
             if not Company.objects.filter(register_code=company_code).exists():
                 raise ValidationError(
-                    {"register_code": _("This register code invalid!")}
+                    {"register_code": _("This register code is invalid!")}
                 )
 
             company = Company.objects.get(register_code=company_code)

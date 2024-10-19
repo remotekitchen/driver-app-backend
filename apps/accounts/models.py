@@ -14,7 +14,7 @@ from django.utils.translation import gettext_lazy as _
 class User(AbstractUser):
     class RoleType(models.TextChoices):
         OWNER = "owner", _("Owner")
-        EMPLOYEE = "employee", _("Employee")
+        DRIVER = "driver", _("Driver")
         NA = "n/a", _("N/A")
 
     username = None
@@ -41,6 +41,11 @@ class User(AbstractUser):
     )
     uid = models.UUIDField(
         verbose_name=_("verify id"), unique=True, blank=True, null=True
+    )
+    lat = models.FloatField(verbose_name=_("Latitude"), blank=True, null=True)
+    lng = models.FloatField(verbose_name=_("Longitude"), blank=True, null=True)
+    is_verified_rider = models.BooleanField(
+        verbose_name=_("is verified rider"), default=False
     )
 
     objects = UserManager()
@@ -93,3 +98,12 @@ class Otp(BaseModel):
 
     def __str__(self) -> str:
         return f"{self.otp} | is_used: {self.is_used}"
+
+    def validate_lat_lng(lat, lng):
+      if not (-90 <= lat <= 90 and -180 <= lng <= 180):
+        raise ValidationError(_("Invalid latitude/longitude values"))
+class Meta:
+    indexes = [
+        models.Index(fields=['email']),
+        models.Index(fields=['phone']),
+    ]
