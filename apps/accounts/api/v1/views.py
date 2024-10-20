@@ -1,14 +1,15 @@
-from accounts.api.base.serializers import BaseEmailPasswordLoginSerializer
-from accounts.api.base.views import (
-    BaseAppleLoginAPIView, BaseChangePasswordAPIView, BaseContactModelAPIView,
-    BaseEmailPasswordLoginAPIView, BaseGoogleConnectAPIView,
-    BaseGoogleLoginAPIView, BaseRestaurantUserAPIView,
-    BaseRestaurantUserRetrieveAPIView, BaseUserAddressListCreateAPIView,
-    BaseUserAddressRetrieveUpdateDestroyAPIView, BaseUserEmailVerifyView,
-    BaseUserRegistrationAPIView, BaseUserRetrieveUpdateDestroyAPIView)
-from accounts.api.v1.serializers import (ChangePasswordSerializer,
-                                         RestaurantUserSerializer,
-                                         UserAddressSerializer, UserSerializer)
+from apps.accounts.api.base.serializers import BaseEmailPasswordLoginSerializer
+from apps.accounts.api.base.views import (
+    BaseAppleLoginAPIView,
+    BaseChangePasswordAPIView,
+    BaseEmailPasswordLoginAPIView,
+    BaseGoogleConnectAPIView,
+    BaseGoogleLoginAPIView,
+    BaseUserEmailVerifyView,
+    BaseUserRegistrationAPIView,
+    BaseUserRetrieveUpdateDestroyAPIView,
+)
+from apps.accounts.api.v1.serializers import ChangePasswordSerializer, UserSerializer
 
 
 class UserRegistrationAPIView(BaseUserRegistrationAPIView):
@@ -41,23 +42,3 @@ class UserRetrieveUpdateDestroyAPIView(BaseUserRetrieveUpdateDestroyAPIView):
 
 class ChangePasswordAPIView(BaseChangePasswordAPIView):
     serializer_class = ChangePasswordSerializer
-
-
-class RestaurantUserAPIView(BaseRestaurantUserAPIView):
-    pass
-
-
-class RestaurantUserRetrieveAPIView(BaseRestaurantUserRetrieveAPIView):
-    serializer_class = RestaurantUserSerializer
-
-
-class UserAddressListCreateAPIView(BaseUserAddressListCreateAPIView):
-    serializer_class = UserAddressSerializer
-
-
-class UserAddressRetrieveUpdateDestroyAPIView(BaseUserAddressRetrieveUpdateDestroyAPIView):
-    serializer_class = UserAddressSerializer
-
-
-class ContactModelAPIView(BaseContactModelAPIView):
-    pass

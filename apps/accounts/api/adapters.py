@@ -1,10 +1,11 @@
-from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter as BaseGoogleOAuth2Adapter
-from allauth.socialaccount.providers.apple.views import AppleOAuth2Adapter as BaseAppleOAuth2Adapter
+from allauth.socialaccount.providers.apple.views import (
+    AppleOAuth2Adapter as BaseAppleOAuth2Adapter,
+)
+from allauth.socialaccount.providers.google.views import (
+    GoogleOAuth2Adapter as BaseGoogleOAuth2Adapter,
+)
 
-from accounts.models import User
-from core.utils import get_logger
-
-logger = get_logger()
+from apps.accounts.models import User
 
 
 class PreSocialLoginMixin:
@@ -17,12 +18,13 @@ class PreSocialLoginMixin:
 
         try:
             user = User.objects.get(
-                email=user.email)  # if user exists, connect the account to the existing account and login
+                email=user.email
+            )  # if user exists, connect the account to the existing account and login
             sociallogin.connect(request, user)
         except User.DoesNotExist:
             pass
         except Exception as e:
-            logger.exception('Social adapter failure - {}'.format(e))
+            logger.exception("Social adapter failure - {}".format(e))
 
 
 class GoogleOAuth2Adapter(PreSocialLoginMixin, BaseGoogleOAuth2Adapter):
