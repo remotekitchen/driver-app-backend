@@ -38,7 +38,22 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "storages",
+    "rest_framework",
+    "django_rest_passwordreset",
+    "rest_framework.authtoken",
+    "django_filters",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+    "allauth.socialaccount.providers.apple",
+    "corsheaders",
+    "dj_rest_auth",
+    # own apps
+    "apps.accounts",
 ]
+
+AUTH_USER_MODEL = "accounts.User"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -48,6 +63,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = "delivery.urls"
@@ -103,6 +119,38 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+AUTHENTICATION_BACKENDS = [
+    # Needed to log-in by username in Django admin, regardless of `allauth`
+    "django.contrib.auth.backends.ModelBackend",
+    # `allauth` specific authentication methods, such as login by e-mail
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+
+
+# Allauth settings
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "SCOPE": ["profile", "email", "openid"],
+        "METHOD": "oauth2",
+        "AUTH_PARAMS": {"access_type": "offline", "auth_type": "reauthenticate"},
+    },
+    "apple": {
+        "APP": {
+            # Your service identifier.
+            "client_id": config("APPLE_CLIENT_ID"),
+            # The Key ID (visible in the "View Key Details" page).
+            "secret": config("APPLE_KEYID"),
+            # Member ID/App ID Prefix -- you can find it below your name
+            # at the top right corner of the page, or it’s your App ID
+            # Prefix in your App ID.
+            "key": config("MEMAPPIDPREFIX"),
+            "settings": {
+                # The certificate you downloaded when generating the key.
+                "certificate_key": config("CERTIFICATE_KEY")
+            },
+        }
+    },
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
@@ -135,3 +183,12 @@ AWS_DEFAULT_ACL = "public-read"
 AWS_QUERYSTRING_AUTH = False
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_AUTHENTICATION_METHOD = "email"
+
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_USERNAME_REQUIRED = False
+SITE_ID = 1
