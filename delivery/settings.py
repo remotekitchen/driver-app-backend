@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "dj_rest_auth",
     # own apps
+    "apps.core",
     "apps.accounts",
 ]
 
