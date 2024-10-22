@@ -3,7 +3,7 @@ from django.contrib.admin import display
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
 
-from apps.accounts.models import User
+from apps.accounts.models import Profile, User, Vehicle
 
 
 @admin.register(User)
@@ -29,6 +29,7 @@ class UserAdmin(BaseUserAdmin):
                     "is_active",
                     "is_staff",
                     "is_superuser",
+                    "role",
                 ],
             },
         ],
@@ -37,3 +38,7 @@ class UserAdmin(BaseUserAdmin):
     date_hierarchy = "date_joined"
     ordering = ["-id"]
     search_fields = ("first_name", "last_name", "email")
+
+
+admin.site.register(Profile)
+admin.site.register(Vehicle)
