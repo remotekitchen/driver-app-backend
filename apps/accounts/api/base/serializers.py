@@ -53,7 +53,8 @@ class BaseUserSerializer(serializers.ModelSerializer):
         password = validated_data.pop("password")
         user = User.objects.create(**validated_data)
         user.set_password(password)
-        user.save(update_fields=["password"])
+        user.role = User.RoleType.DRIVER
+        user.save(update_fields=["password", "role"])
         Token.objects.create(user=user)
         return user
 
