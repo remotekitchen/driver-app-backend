@@ -68,6 +68,8 @@ MIDDLEWARE = [
     # "allauth.account.middleware.AccountMiddleware",
 ]
 
+
+
 ROOT_URLCONF = "delivery.urls"
 
 TEMPLATES = [

@@ -17,6 +17,7 @@ from rest_framework.generics import (
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework import generics
 
 from apps.accounts.api.adapters import AppleOAuth2Adapter, GoogleOAuth2Adapter
 from apps.accounts.api.base.serializers import (
@@ -25,8 +26,8 @@ from apps.accounts.api.base.serializers import (
     BaseUserSerializer,
     SocialLoginSerializer,
 )
-from apps.accounts.api.v1.serializers import UserSerializer
-from apps.accounts.models import User
+from apps.accounts.api.v1.serializers import UserSerializer, ProfileSerializer
+from apps.accounts.models import User, Profile
 
 
 class AbstractBaseLoginView(GenericAPIView):
@@ -127,3 +128,63 @@ class BaseChangePasswordAPIView(UpdateAPIView):
     def patch(self, request, *args, **kwargs):
         self.partial_update(request, *args, **kwargs)
         return Response(UserSerializer(instance=self.get_object()).data)
+
+
+
+
+
+
+class BaseProfileListCreateView(generics.GenericAPIView):
+    serializer_class = ProfileSerializer
+    # permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk=None):
+        """Retrieve the profile of the authenticated user."""
+        try:
+            profile = request.user.rider_profile  
+            serializer = self.get_serializer(profile)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Profile.DoesNotExist:
+            return Response({"detail": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    def post(self, request):
+        """Create a new profile for the authenticated user."""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        profile = Profile.objects.create_profile(request.user, serializer.validated_data)  # Use manager method
+        return Response(self.get_serializer(profile).data, status=status.HTTP_201_CREATED)
+
+
+
+class BaseProfileRetrieveUpdateDestroyView(generics.GenericAPIView):
+    serializer_class = ProfileSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Retrieve the user's profile."""
+        try:
+            profile = request.user.rider_profile
+            serializer = self.get_serializer(profile)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Profile.DoesNotExist:
+            return Response({"detail": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    def put(self, request):
+        """Update the user's profile."""
+        try:
+            profile = request.user.rider_profile
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            updated_profile = Profile.objects.update_profile(profile, serializer.validated_data)  # Use manager method
+            return Response(self.get_serializer(updated_profile).data, status=status.HTTP_200_OK)
+        except Profile.DoesNotExist:
+            return Response({"detail": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    def delete(self, request):
+        """Delete the user's profile."""
+        try:
+            profile = request.user.rider_profile
+            profile.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Profile.DoesNotExist:
+            return Response({"detail": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)

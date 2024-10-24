@@ -10,7 +10,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 
-from apps.accounts.models import User
+from apps.accounts.models import User,Profile
 
 
 class SocialLoginSerializer(BaseSocialLoginSerializer):
@@ -119,3 +119,17 @@ class BaseChangePasswordSerializer(serializers.ModelSerializer):
         instance.save()
 
         return instance
+
+
+
+
+class BaseProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = [
+            'user', 'dp', 'present_address', 'permanent_address', 
+            'nid', 'nid_front', 'nid_back', 
+            'driving_license', 'driving_license_front', 'driving_license_back', 
+            'is_verified'
+        ]
+        read_only_fields = ['user', 'is_verified']

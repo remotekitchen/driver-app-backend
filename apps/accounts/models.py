@@ -2,7 +2,7 @@ from django.contrib.auth.models import AbstractUser, Group, Permission
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from apps.accounts.managers import UserManager
+from apps.accounts.managers import UserManager, ProfileManager
 from apps.core.models import Address, BaseModel
 
 
@@ -117,6 +117,9 @@ class Profile(BaseModel):
     )
 
     is_verified = models.BooleanField(default=False)
+
+
+    objects = ProfileManager() 
 
     def __str__(self):
         return f"{self.user.email} :: {self.id}"
