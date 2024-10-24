@@ -53,7 +53,10 @@ class Delivery(BaseModel):
     )
 
     pickup_address = models.ForeignKey(
-        Address, on_delete=models.SET_NULL, verbose_name=_("pickup address")
+        Address,
+        on_delete=models.CASCADE,
+        verbose_name=_("pickup address"),
+        related_name="pickup_address",
     )
     pickup_customer_name = models.CharField(
         max_length=255, verbose_name=_("pickup customer name")
@@ -65,7 +68,7 @@ class Delivery(BaseModel):
     pickup_last_time = models.DateTimeField(verbose_name=_("pickup last time"))
 
     drop_off_address = models.ForeignKey(
-        Address, on_delete=models.SET_NULL, verbose_name=_("pickup address")
+        Address, on_delete=models.CASCADE, verbose_name=_("pickup address")
     )
     drop_off_customer_name = models.CharField(
         max_length=255, verbose_name=_("drop of customer name")
@@ -107,3 +110,9 @@ class Delivery(BaseModel):
         choices=PAYMENT_METHOD_TYPE.choices,
         verbose_name=_("payment type"),
     )
+
+    def __str__(self):
+        return f"{self.id} :: {self.client_id}"
+
+    class Meta:
+        ordering = ["-id"]
