@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     # own apps
     "apps.core",
     "apps.accounts",
+    "apps.billing",
 ]
 
 AUTH_USER_MODEL = "accounts.User"
