@@ -10,8 +10,7 @@ from apps.accounts.api.v1.views import (
     UserEmailVerifyView,
     UserRegistrationAPIView,
     UserRetrieveUpdateDestroyAPIView,
-    ProfileListCreateView,
-    ProfileRetrieveUpdateDestroyView
+    ProfileAPIView
 
 )
 
@@ -33,10 +32,10 @@ urlpatterns = [
     ),
      path(
         "user/profile/",
-        ProfileListCreateView.as_view(), name='profile-list-create',
+        ProfileAPIView.as_view(), name='profile-list-create',
     ),
        path(
-        "user/profile/me",
-        ProfileRetrieveUpdateDestroyView.as_view(), name='profile-detail-update-delete',
+        "user/profile/<int:pk>/",
+        ProfileAPIView.as_view(), name='profile-detail',
     ),
 ]

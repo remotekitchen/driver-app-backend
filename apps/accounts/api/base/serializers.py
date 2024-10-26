@@ -121,15 +121,9 @@ class BaseChangePasswordSerializer(serializers.ModelSerializer):
         return instance
 
 
-
-
 class BaseProfileSerializer(serializers.ModelSerializer):
+    
     class Meta:
         model = Profile
-        fields = [
-            'user', 'dp', 'present_address', 'permanent_address', 
-            'nid', 'nid_front', 'nid_back', 
-            'driving_license', 'driving_license_front', 'driving_license_back', 
-            'is_verified'
-        ]
-        read_only_fields = ['user', 'is_verified']
+        fields = '__all__'
+        read_only_fields = ['user']  # if you want user to be read-only

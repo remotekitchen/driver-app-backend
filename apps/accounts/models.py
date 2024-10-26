@@ -71,7 +71,7 @@ class User(AbstractUser):
 
 
 class Profile(BaseModel):
-    user = models.ForeignKey(
+    user = models.OneToOneField(
         User,
         on_delete=models.CASCADE,
         verbose_name=_("user"),

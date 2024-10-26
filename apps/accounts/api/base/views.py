@@ -28,6 +28,7 @@ from apps.accounts.api.base.serializers import (
 )
 from apps.accounts.api.v1.serializers import UserSerializer, ProfileSerializer
 from apps.accounts.models import User, Profile
+from django.shortcuts import get_object_or_404
 
 
 class AbstractBaseLoginView(GenericAPIView):
@@ -134,57 +135,73 @@ class BaseChangePasswordAPIView(UpdateAPIView):
 
 
 
-class BaseProfileListCreateView(generics.GenericAPIView):
+
+class BaseProfileAPIView(APIView):
+    permission_classes = [IsAuthenticated]  # Require authentication for this view
     serializer_class = ProfileSerializer
-    # permission_classes = [IsAuthenticated]
 
     def get(self, request, pk=None):
-        """Retrieve the profile of the authenticated user."""
-        try:
-            profile = request.user.rider_profile  
-            serializer = self.get_serializer(profile)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Profile.DoesNotExist:
-            return Response({"detail": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
+        if not request.user.is_authenticated:
+            return self.handle_response({}, status_code=status.HTTP_401_UNAUTHORIZED, error="Authentication required")
+
+        if pk:
+            profile = self.get_object(pk, request.user)
+            if not profile:
+                return self.handle_response({}, status_code=status.HTTP_404_NOT_FOUND, error="Profile not found")
+            serializer = self.serializer_class(profile)
+            return self.handle_response(serializer.data)
+        else:
+            profiles = Profile.objects.filter(user=request.user)
+            serializer = self.serializer_class(profiles, many=True)
+            return self.handle_response(serializer.data)
 
     def post(self, request):
-        """Create a new profile for the authenticated user."""
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        profile = Profile.objects.create_profile(request.user, serializer.validated_data)  # Use manager method
-        return Response(self.get_serializer(profile).data, status=status.HTTP_201_CREATED)
-
-
-
-class BaseProfileRetrieveUpdateDestroyView(generics.GenericAPIView):
-    serializer_class = ProfileSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        """Retrieve the user's profile."""
+        if not request.user.is_authenticated:
+            return self.handle_response({}, status_code=status.HTTP_401_UNAUTHORIZED, error="Authentication required")
+        
         try:
-            profile = request.user.rider_profile
-            serializer = self.get_serializer(profile)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Profile.DoesNotExist:
-            return Response({"detail": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
+            serializer = self.serializer_class(data=request.data)
+            if serializer.is_valid():
+                serializer.save(user=request.user)
+                return self.handle_response(serializer.data, status_code=status.HTTP_201_CREATED)
+            return self.handle_response(serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return self.handle_response({}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, error=str(e))
 
-    def put(self, request):
-        """Update the user's profile."""
+    def put(self, request, pk):
+        if not request.user.is_authenticated:
+            return self.handle_response({}, status_code=status.HTTP_401_UNAUTHORIZED, error="Authentication required")
+        
+        profile = self.get_object(pk, request.user)
+        if not profile:
+            return self.handle_response({}, status_code=status.HTTP_404_NOT_FOUND, error="Profile not found")
+        
         try:
-            profile = request.user.rider_profile
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            updated_profile = Profile.objects.update_profile(profile, serializer.validated_data)  # Use manager method
-            return Response(self.get_serializer(updated_profile).data, status=status.HTTP_200_OK)
-        except Profile.DoesNotExist:
-            return Response({"detail": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
+            serializer = self.serializer_class(profile, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return self.handle_response(serializer.data)
+            return self.handle_response(serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return self.handle_response({}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, error=str(e))
 
-    def delete(self, request):
-        """Delete the user's profile."""
+    def delete(self, request, pk):
+        if not request.user.is_authenticated:
+            return self.handle_response({}, status_code=status.HTTP_401_UNAUTHORIZED, error="Authentication required")
+        
+        profile = self.get_object(pk, request.user)
+        if not profile:
+            return self.handle_response({}, status_code=status.HTTP_404_NOT_FOUND, error="Profile not found")
+        profile.delete()
+        return self.handle_response({"message": "Profile deleted successfully"}, status_code=status.HTTP_204_NO_CONTENT)
+
+    def get_object(self, pk, user):
         try:
-            profile = request.user.rider_profile
-            profile.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
+            return Profile.objects.get(pk=pk, user=user)
         except Profile.DoesNotExist:
-            return Response({"detail": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
+            return None
+
+    def handle_response(self, data, status_code=status.HTTP_200_OK, error=None):
+        if error:
+            return Response({'error': error}, status=status_code)
+        return Response(data, status=status_code)
