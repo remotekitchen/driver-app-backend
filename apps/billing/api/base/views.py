@@ -11,10 +11,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.billing.api.base.serializers import (
+    CheckAddressSerializer,
     DeliveryCreateSerializer,
     DeliveryGETSerializer,
 )
-from apps.billing.models import DeliveryFee
+from apps.billing.models import Delivery, DeliveryFee
 
 gmaps = googlemaps.Client(key=config("GOOGLE_MAP_KEY"))
 User = get_user_model()
@@ -56,7 +57,7 @@ class BaseCreateDeliveryAPIView(APIView):
         instance.distance = distance
         instance.fees = fees
         instance.driver = driver
-
+        instance.status = Delivery.STATUS_TYPE.DRIVER_ASSIGNED
         instance.save()
 
         sr = DeliveryGETSerializer(instance)
@@ -129,3 +130,47 @@ class BaseCreateDeliveryAPIView(APIView):
         )
 
         return float("{0:.2f}".format(distance * fee_per_km))
+
+
+class BaseCheckAddressAPIView(BaseCreateDeliveryAPIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request):
+        serializer = CheckAddressSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.data.copy()
+
+        drop_address = f"{data.get("drop_off_address").get("street_address")} {data.get("drop_off_address").get("city")} {data.get("drop_off_address").get("state")} {data.get("drop_off_address").get("postal_code")} {data.get("drop_off_address").get("country")} "
+
+        drop_off_pointer = self.get_lat(drop_address)
+
+        distance = self.get_distance_between_coords(
+            drop_off_pointer.get("lat"),
+            drop_off_pointer.get("lng"),
+            data.get("pickup_latitude"),
+            data.get("pickup_longitude"),
+        )
+
+        if distance > 10:
+            return Response(
+                "We can not deliver to this address!",
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        driver = self.assign_driver_based_on_location(
+            data.get("pickup_latitude"), data.get("pickup_longitude")
+        )
+
+        if not driver:
+            return Response(
+                "We can not deliver to this address!",
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        data.pop("driver")
+        fees = self.calculate_fees(distance)
+
+        data["distance"] = distance
+        data["fees"] = fees
+
+        return Response(data)
