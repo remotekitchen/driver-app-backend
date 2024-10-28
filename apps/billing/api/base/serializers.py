@@ -48,5 +48,12 @@ class DeliveryCreateSerializer(BaseDeliverySerializer):
     drop_off_address = BaseAddressSerializer()
 
 
+class CheckAddressSerializer(DeliveryCreateSerializer):
+    class Meta(DeliveryCreateSerializer.Meta):
+        extra_kwargs = {
+            "client_id": {"required": False},
+        }
+
+
 class DeliveryGETSerializer(DeliveryCreateSerializer):
     driver = BaseDriverSerializer()

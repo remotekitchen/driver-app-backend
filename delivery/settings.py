@@ -37,7 +37,6 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "storages",
     "rest_framework",
     "django_rest_passwordreset",
     "rest_framework.authtoken",
@@ -49,6 +48,7 @@ INSTALLED_APPS = [
     "allauth.socialaccount.providers.apple",
     "corsheaders",
     "dj_rest_auth",
+    "storages",
     # own apps
     "apps.core",
     "apps.accounts",
@@ -184,15 +184,14 @@ USE_I18N = True
 USE_TZ = True
 
 
+# Django's static and media files setup
+STATICFILES_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
-STATICFILES_STORAGE = "storages.backends.s3boto3.S3StaticStorage"
 
 # # Static files (CSS, JavaScript, Images)
 STATIC_URL = "/static/"
-STATIC_ROOT = BASE_DIR / "static"
 
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
 
 AWS_ACCESS_KEY_ID = config("S3_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = config("S3_SECRET_ACCESS_KEY")
