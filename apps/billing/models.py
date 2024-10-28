@@ -96,13 +96,13 @@ class Delivery(BaseModel):
         default=CURRENCY_TYPE.BDT,
         verbose_name=_("currency"),
     )
-    ride_duration = models.PositiveIntegerField(default=0)
-    distance = models.PositiveIntegerField(default=0)
-    fees = models.PositiveIntegerField(default=0)
-    tips = models.PositiveIntegerField(default=0)
-    discount = models.PositiveIntegerField(default=0)
-    cash_collected = models.PositiveIntegerField(default=0)
-    amount = models.PositiveIntegerField(default=0)
+    ride_duration = models.FloatField(default=0)
+    distance = models.FloatField(default=0)
+    fees = models.FloatField(default=0)
+    tips = models.FloatField(default=0)
+    discount = models.FloatField(default=0)
+    cash_collected = models.FloatField(default=0)
+    amount = models.FloatField(default=0)
 
     payment_type = models.CharField(
         max_length=50,
@@ -116,3 +116,11 @@ class Delivery(BaseModel):
 
     class Meta:
         ordering = ["-id"]
+
+
+class DeliveryFee(BaseModel):
+    distance = models.PositiveIntegerField(default=0)
+    per_km = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.id} {self.distance}"
