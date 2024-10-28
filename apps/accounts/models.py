@@ -2,7 +2,7 @@ from django.contrib.auth.models import AbstractUser, Group, Permission
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from apps.accounts.managers import UserManager
+from apps.accounts.managers import UserManager, ProfileManager
 from apps.core.models import Address, BaseModel
 
 
@@ -71,7 +71,7 @@ class User(AbstractUser):
 
 
 class Profile(BaseModel):
-    user = models.ForeignKey(
+    user = models.OneToOneField(
         User,
         on_delete=models.CASCADE,
         verbose_name=_("user"),
@@ -117,6 +117,22 @@ class Profile(BaseModel):
     )
 
     is_verified = models.BooleanField(default=False)
+    
+   # Nominee fields
+    nominee_name = models.CharField(max_length=100, verbose_name=_("nominee name"), blank=True, null=True)
+    nominee_relationship = models.CharField(max_length=50, verbose_name=_("nominee relationship"), blank=True, null=True)
+    nominee_contact = models.CharField(max_length=15, verbose_name=_("nominee contact"), blank=True, null=True)
+    nominee_address = models.ForeignKey(
+        Address,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        verbose_name=_("nominee address"),
+        related_name="nominee_address",
+    )
+
+
+    objects = ProfileManager() 
 
     def __str__(self):
         return f"{self.user.email} :: {self.id}"
