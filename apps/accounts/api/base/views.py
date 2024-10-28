@@ -137,7 +137,7 @@ class BaseChangePasswordAPIView(UpdateAPIView):
 
 
 class BaseProfileAPIView(APIView):
-    permission_classes = [IsAuthenticated]  # Require authentication for this view
+    permission_classes = [IsAuthenticated]  
     serializer_class = ProfileSerializer
 
     def get(self, request, pk=None):

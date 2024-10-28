@@ -122,8 +122,7 @@ class BaseChangePasswordSerializer(serializers.ModelSerializer):
 
 
 class BaseProfileSerializer(serializers.ModelSerializer):
-    
     class Meta:
         model = Profile
         fields = '__all__'
-        read_only_fields = ['user']  # if you want user to be read-only
+        read_only_fields = ['user']  
