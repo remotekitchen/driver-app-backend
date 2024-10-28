@@ -1,4 +1,5 @@
 from django.contrib.auth.base_user import BaseUserManager
+from django.db import models
 
 
 class UserManager(BaseUserManager):
@@ -33,3 +34,35 @@ class UserManager(BaseUserManager):
             raise ValueError('Superuser must have is_superuser=True.')
 
         return self._create_user(email, password, **extra_fields)
+    
+
+
+class ProfileManager(models.Manager):
+    def create_profile(self, user, profile_data):
+        """Create a profile for the user"""
+        return self.create(
+            user=user,
+            dp=profile_data.get('dp'),
+            present_address=profile_data.get('present_address'),
+            permanent_address=profile_data.get('permanent_address'),
+            nid=profile_data.get('nid'),
+            nid_front=profile_data.get('nid_front'),
+            nid_back=profile_data.get('nid_back'),
+            driving_license=profile_data.get('driving_license'),
+            driving_license_front=profile_data.get('driving_license_front'),
+            driving_license_back=profile_data.get('driving_license_back'),
+        )
+
+    def update_profile(self, profile, profile_data):
+        """Update an existing profile"""
+        profile.dp = profile_data.get('dp', profile.dp)
+        profile.present_address = profile_data.get('present_address', profile.present_address)
+        profile.permanent_address = profile_data.get('permanent_address', profile.permanent_address)
+        profile.nid = profile_data.get('nid', profile.nid)
+        profile.nid_front = profile_data.get('nid_front', profile.nid_front)
+        profile.nid_back = profile_data.get('nid_back', profile.nid_back)
+        profile.driving_license = profile_data.get('driving_license', profile.driving_license)
+        profile.driving_license_front = profile_data.get('driving_license_front', profile.driving_license_front)
+        profile.driving_license_back = profile_data.get('driving_license_back', profile.driving_license_back)
+        profile.save()
+        return profile

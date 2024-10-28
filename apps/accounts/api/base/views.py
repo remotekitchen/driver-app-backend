@@ -17,6 +17,7 @@ from rest_framework.generics import (
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework import generics
 
 from apps.accounts.api.adapters import AppleOAuth2Adapter, GoogleOAuth2Adapter
 from apps.accounts.api.base.serializers import (
@@ -25,8 +26,9 @@ from apps.accounts.api.base.serializers import (
     BaseUserSerializer,
     SocialLoginSerializer,
 )
-from apps.accounts.api.v1.serializers import UserSerializer
-from apps.accounts.models import User
+from apps.accounts.api.v1.serializers import UserSerializer, ProfileSerializer
+from apps.accounts.models import User, Profile
+from django.shortcuts import get_object_or_404
 
 
 class AbstractBaseLoginView(GenericAPIView):
@@ -127,3 +129,79 @@ class BaseChangePasswordAPIView(UpdateAPIView):
     def patch(self, request, *args, **kwargs):
         self.partial_update(request, *args, **kwargs)
         return Response(UserSerializer(instance=self.get_object()).data)
+
+
+
+
+
+
+
+class BaseProfileAPIView(APIView):
+    permission_classes = [IsAuthenticated]  
+    serializer_class = ProfileSerializer
+
+    def get(self, request, pk=None):
+        if not request.user.is_authenticated:
+            return self.handle_response({}, status_code=status.HTTP_401_UNAUTHORIZED, error="Authentication required")
+
+        if pk:
+            profile = self.get_object(pk, request.user)
+            if not profile:
+                return self.handle_response({}, status_code=status.HTTP_404_NOT_FOUND, error="Profile not found")
+            serializer = self.serializer_class(profile)
+            return self.handle_response(serializer.data)
+        else:
+            profiles = Profile.objects.filter(user=request.user)
+            serializer = self.serializer_class(profiles, many=True)
+            return self.handle_response(serializer.data)
+
+    def post(self, request):
+        if not request.user.is_authenticated:
+            return self.handle_response({}, status_code=status.HTTP_401_UNAUTHORIZED, error="Authentication required")
+        
+        try:
+            serializer = self.serializer_class(data=request.data)
+            if serializer.is_valid():
+                serializer.save(user=request.user)
+                return self.handle_response(serializer.data, status_code=status.HTTP_201_CREATED)
+            return self.handle_response(serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return self.handle_response({}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, error=str(e))
+
+    def put(self, request, pk):
+        if not request.user.is_authenticated:
+            return self.handle_response({}, status_code=status.HTTP_401_UNAUTHORIZED, error="Authentication required")
+        
+        profile = self.get_object(pk, request.user)
+        if not profile:
+            return self.handle_response({}, status_code=status.HTTP_404_NOT_FOUND, error="Profile not found")
+        
+        try:
+            serializer = self.serializer_class(profile, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return self.handle_response(serializer.data)
+            return self.handle_response(serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return self.handle_response({}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, error=str(e))
+
+    def delete(self, request, pk):
+        if not request.user.is_authenticated:
+            return self.handle_response({}, status_code=status.HTTP_401_UNAUTHORIZED, error="Authentication required")
+        
+        profile = self.get_object(pk, request.user)
+        if not profile:
+            return self.handle_response({}, status_code=status.HTTP_404_NOT_FOUND, error="Profile not found")
+        profile.delete()
+        return self.handle_response({"message": "Profile deleted successfully"}, status_code=status.HTTP_204_NO_CONTENT)
+
+    def get_object(self, pk, user):
+        try:
+            return Profile.objects.get(pk=pk, user=user)
+        except Profile.DoesNotExist:
+            return None
+
+    def handle_response(self, data, status_code=status.HTTP_200_OK, error=None):
+        if error:
+            return Response({'error': error}, status=status_code)
+        return Response(data, status=status_code)

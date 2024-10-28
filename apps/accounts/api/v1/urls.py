@@ -10,6 +10,8 @@ from apps.accounts.api.v1.views import (
     UserEmailVerifyView,
     UserRegistrationAPIView,
     UserRetrieveUpdateDestroyAPIView,
+    ProfileAPIView
+
 )
 
 router = DefaultRouter()
@@ -27,5 +29,13 @@ urlpatterns = [
     path(
         "password_reset/",
         include("django_rest_passwordreset.urls", namespace="password_reset"),
+    ),
+     path(
+        "user/profile/",
+        ProfileAPIView.as_view(), name='profile-list-create',
+    ),
+       path(
+        "user/profile/<int:pk>/",
+        ProfileAPIView.as_view(), name='profile-detail',
     ),
 ]
