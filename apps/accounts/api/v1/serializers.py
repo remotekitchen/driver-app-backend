@@ -2,6 +2,7 @@ from apps.accounts.api.base.serializers import (
     BaseChangePasswordSerializer,
     BaseEmailPasswordLoginSerializer,
     BaseUserSerializer,
+    BaseProfileSerializer
 )
 
 
@@ -14,4 +15,8 @@ class EmailPasswordLoginSerializer(BaseEmailPasswordLoginSerializer):
 
 
 class ChangePasswordSerializer(BaseChangePasswordSerializer):
+    pass
+
+
+class ProfileSerializer(BaseUserSerializer):
     pass

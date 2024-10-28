@@ -33,7 +33,10 @@ class UserAdmin(BaseUserAdmin):
                 ],
             },
         ],
-        [_("Important dates"), {"fields": ["last_login", "date_joined"]}],
+        [
+            _("Important dates"),
+            {"fields": ["last_login", "date_joined", "latitude", "longitude"]},
+        ],
     ]
     date_hierarchy = "date_joined"
     ordering = ["-id"]

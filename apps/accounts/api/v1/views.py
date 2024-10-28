@@ -8,6 +8,7 @@ from apps.accounts.api.base.views import (
     BaseUserEmailVerifyView,
     BaseUserRegistrationAPIView,
     BaseUserRetrieveUpdateDestroyAPIView,
+    BaseProfileAPIView
 )
 from apps.accounts.api.v1.serializers import ChangePasswordSerializer, UserSerializer
 
@@ -42,3 +43,9 @@ class UserRetrieveUpdateDestroyAPIView(BaseUserRetrieveUpdateDestroyAPIView):
 
 class ChangePasswordAPIView(BaseChangePasswordAPIView):
     serializer_class = ChangePasswordSerializer
+
+
+
+class ProfileAPIView(BaseProfileAPIView):
+    pass
+
