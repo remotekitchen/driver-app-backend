@@ -18,5 +18,5 @@ class ChangePasswordSerializer(BaseChangePasswordSerializer):
     pass
 
 
-class ProfileSerializer(BaseUserSerializer):
+class ProfileSerializer(BaseProfileSerializer):
     pass
