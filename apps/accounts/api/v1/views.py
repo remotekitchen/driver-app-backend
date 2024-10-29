@@ -8,7 +8,8 @@ from apps.accounts.api.base.views import (
     BaseUserEmailVerifyView,
     BaseUserRegistrationAPIView,
     BaseUserRetrieveUpdateDestroyAPIView,
-    BaseProfileAPIView
+    BaseProfileAPIView,
+    BaseVehicleAPIView
 )
 from apps.accounts.api.v1.serializers import ChangePasswordSerializer, UserSerializer
 
@@ -47,5 +48,9 @@ class ChangePasswordAPIView(BaseChangePasswordAPIView):
 
 
 class ProfileAPIView(BaseProfileAPIView):
+    pass
+
+
+class VehicleAPIView(BaseVehicleAPIView):
     pass
 

@@ -10,7 +10,8 @@ from apps.accounts.api.v1.views import (
     UserEmailVerifyView,
     UserRegistrationAPIView,
     UserRetrieveUpdateDestroyAPIView,
-    ProfileAPIView
+    ProfileAPIView,
+    VehicleAPIView
 
 )
 
@@ -37,5 +38,13 @@ urlpatterns = [
        path(
         "user/profile/<int:pk>/",
         ProfileAPIView.as_view(), name='profile-detail',
+    ),
+      path(
+        "user/vehicle/",
+        VehicleAPIView.as_view(), name='vehicle-list-create',
+    ),
+       path(
+        "user/vehicle/<int:pk>/",
+        VehicleAPIView.as_view(), name='vehicle-detail-put-delete',
     ),
 ]
