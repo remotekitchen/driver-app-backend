@@ -52,6 +52,14 @@ class CheckAddressSerializer(DeliveryCreateSerializer):
     class Meta(DeliveryCreateSerializer.Meta):
         extra_kwargs = {
             "client_id": {"required": False},
+            "pickup_ready_at": {"required": False},
+            "pickup_last_time": {"required": False},
+            "drop_off_customer_name": {"required": False},
+            "drop_off_last_time": {"required": False},
+            "currency": {"required": False},
+            "tips": {"required": False},
+            "amount": {"required": False},
+            "payment_type": {"required": False},
         }
 
 
