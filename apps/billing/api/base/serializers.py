@@ -60,6 +60,7 @@ class CheckAddressSerializer(DeliveryCreateSerializer):
             "tips": {"required": False},
             "amount": {"required": False},
             "payment_type": {"required": False},
+            "pickup_phone": {"required": False},
         }
 
 
