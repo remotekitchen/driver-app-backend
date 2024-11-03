@@ -12,6 +12,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.billing.api.base.serializers import (
+    BaseCancelDeliverySerializer,
     CheckAddressSerializer,
     DeliveryCreateSerializer,
     DeliveryGETSerializer,
@@ -230,3 +231,25 @@ class BaseCheckAddressAPIView(BaseCreateDeliveryAPIView):
         data["drop_off_longitude"] = drop_off_pointer.get("lng")
 
         return Response(data)
+
+
+class BaseCancelDeliveryAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request):
+        sr = BaseCancelDeliverySerializer(data=request.data)
+        sr.is_valid(raise_exception=True)
+        uid = sr.data.get("uid")
+        reason = sr.data.get("reason")
+
+        if not Delivery.objects.filter(uid=uid).exists():
+            return Response(
+                {"message": "delivery does not exists"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        delivery = Delivery.objects.get(uid=uid)
+        delivery.status = Delivery.STATUS_TYPE.CANCELED
+        delivery.reason = reason
+        delivery.save()
+        return Response({"message": "delivery canceled!"}, status=status.HTTP_200_OK)
