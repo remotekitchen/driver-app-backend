@@ -66,3 +66,8 @@ class CheckAddressSerializer(DeliveryCreateSerializer):
 
 class DeliveryGETSerializer(DeliveryCreateSerializer):
     driver = BaseDriverSerializer()
+
+
+class BaseCancelDeliverySerializer(serializers.Serializer):
+    uid = serializers.CharField()
+    reason = serializers.CharField(required=False)

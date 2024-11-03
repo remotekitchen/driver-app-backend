@@ -1,4 +1,5 @@
 from apps.billing.api.base.views import (
+    BaseCancelDeliveryAPIView,
     BaseCheckAddressAPIView,
     BaseCreateDeliveryAPIView,
 )
@@ -9,4 +10,8 @@ class CreateDeliveryAPIView(BaseCreateDeliveryAPIView):
 
 
 class CheckAddressAPIView(BaseCheckAddressAPIView):
+    pass
+
+
+class CancelDeliveryAPIView(BaseCancelDeliveryAPIView):
     pass
