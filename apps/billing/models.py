@@ -25,6 +25,7 @@ class Delivery(BaseModel):
         DELIVERY_SUCCESS = "delivery_success", _("DELIVERY_SUCCESS")
         DELIVERY_FAILED = "delivery_failed", _("DELIVERY_FAILED")
         DRIVER_REJECTED = "driver_rejected", _("DRIVER_REJECTED")
+        CANCELED = "canceled", _("CANCELED")
 
     class PLATFORM_TYPE(models.TextChoices):
         CHATCHEFS = "chatchefs", _("CHATCHEFS")
@@ -110,6 +111,11 @@ class Delivery(BaseModel):
         choices=PAYMENT_METHOD_TYPE.choices,
         verbose_name=_("payment type"),
     )
+    use_google = models.BooleanField(default=False)
+
+    cancel_reason = models.CharField(max_length=255, blank=True, null=True)
+
+    items = models.JSONField(default=dict)
 
     def __str__(self):
         return f"{self.id} :: {self.client_id}"

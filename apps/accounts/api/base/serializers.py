@@ -10,7 +10,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 
-from apps.accounts.models import User,Profile
+from apps.accounts.models import User,Profile,Vehicle
 
 
 class SocialLoginSerializer(BaseSocialLoginSerializer):
@@ -126,3 +126,11 @@ class BaseProfileSerializer(serializers.ModelSerializer):
         model = Profile
         fields = '__all__'
         read_only_fields = ['user']  
+
+
+class BaseVehicleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Vehicle
+        fields = '__all__'
+        read_only_fields = ['user']
+        

@@ -26,8 +26,8 @@ from apps.accounts.api.base.serializers import (
     BaseUserSerializer,
     SocialLoginSerializer,
 )
-from apps.accounts.api.v1.serializers import UserSerializer, ProfileSerializer
-from apps.accounts.models import User, Profile
+from apps.accounts.api.v1.serializers import UserSerializer, ProfileSerializer, VehicleSerializer
+from apps.accounts.models import User, Profile, Vehicle
 from django.shortcuts import get_object_or_404
 
 
@@ -199,6 +199,80 @@ class BaseProfileAPIView(APIView):
         try:
             return Profile.objects.get(pk=pk, user=user)
         except Profile.DoesNotExist:
+            return None
+
+    def handle_response(self, data, status_code=status.HTTP_200_OK, error=None):
+        if error:
+            return Response({'error': error}, status=status_code)
+        return Response(data, status=status_code)
+    
+
+
+
+
+class BaseVehicleAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = VehicleSerializer
+
+    def get(self, request, pk=None):
+        if not request.user.is_authenticated:
+            return self.handle_response({}, status_code=status.HTTP_401_UNAUTHORIZED, error="Authentication required")
+
+        if pk:
+            vehicle = self.get_object(pk, request.user)
+            if not vehicle:
+                return self.handle_response({}, status_code=status.HTTP_404_NOT_FOUND, error="Vehicle not found")
+            serializer = self.serializer_class(vehicle)
+            return self.handle_response(serializer.data)
+        else:
+            vehicles = Vehicle.objects.filter(user=request.user)
+            serializer = self.serializer_class(vehicles, many=True)
+            return self.handle_response(serializer.data)
+
+    def post(self, request):
+        if not request.user.is_authenticated:
+            return self.handle_response({}, status_code=status.HTTP_401_UNAUTHORIZED, error="Authentication required")
+        
+        try:
+            serializer = self.serializer_class(data=request.data)
+            if serializer.is_valid():
+                serializer.save(user=request.user)
+                return self.handle_response(serializer.data, status_code=status.HTTP_201_CREATED)
+            return self.handle_response(serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return self.handle_response({}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, error=str(e))
+
+    def put(self, request, pk):
+        if not request.user.is_authenticated:
+            return self.handle_response({}, status_code=status.HTTP_401_UNAUTHORIZED, error="Authentication required")
+        
+        vehicle = self.get_object(pk, request.user)
+        if not vehicle:
+            return self.handle_response({}, status_code=status.HTTP_404_NOT_FOUND, error="Vehicle not found")
+        
+        try:
+            serializer = self.serializer_class(vehicle, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return self.handle_response(serializer.data)
+            return self.handle_response(serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return self.handle_response({}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, error=str(e))
+
+    def delete(self, request, pk):
+        if not request.user.is_authenticated:
+            return self.handle_response({}, status_code=status.HTTP_401_UNAUTHORIZED, error="Authentication required")
+        
+        vehicle = self.get_object(pk, request.user)
+        if not vehicle:
+            return self.handle_response({}, status_code=status.HTTP_404_NOT_FOUND, error="Vehicle not found")
+        vehicle.delete()
+        return self.handle_response({"message": "Vehicle deleted successfully"}, status_code=status.HTTP_204_NO_CONTENT)
+
+    def get_object(self, pk, user):
+        try:
+            return Vehicle.objects.get(pk=pk, user=user)
+        except Vehicle.DoesNotExist:
             return None
 
     def handle_response(self, data, status_code=status.HTTP_200_OK, error=None):
