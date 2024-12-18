@@ -37,8 +37,25 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "rest_framework",
+    "django_rest_passwordreset",
+    "rest_framework.authtoken",
+    "django_filters",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+    "allauth.socialaccount.providers.apple",
+    "corsheaders",
+    "dj_rest_auth",
     "storages",
+    # own apps
+    "apps.core",
+    "apps.accounts",
+    "apps.billing",
 ]
+
+AUTH_USER_MODEL = "accounts.User"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -48,7 +65,9 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # "allauth.account.middleware.AccountMiddleware",
 ]
+
 
 ROOT_URLCONF = "delivery.urls"
 
@@ -103,6 +122,55 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.BasicAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+        "rest_framework.authentication.TokenAuthentication",
+    ],
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+        "rest_framework.renderers.BrowsableAPIRenderer",
+    ],
+    "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.NamespaceVersioning",
+    "DEFAULT_FILTER_BACKENDS": [
+        "rest_framework.filters.SearchFilter",
+        "django_filters.rest_framework.DjangoFilterBackend",
+    ],
+}
+
+AUTHENTICATION_BACKENDS = [
+    # Needed to log-in by username in Django admin, regardless of `allauth`
+    "django.contrib.auth.backends.ModelBackend",
+    # `allauth` specific authentication methods, such as login by e-mail
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+
+
+# Allauth settings
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "SCOPE": ["profile", "email", "openid"],
+        "METHOD": "oauth2",
+        "AUTH_PARAMS": {"access_type": "offline", "auth_type": "reauthenticate"},
+    },
+    "apple": {
+        "APP": {
+            # Your service identifier.
+            "client_id": config("APPLE_CLIENT_ID"),
+            # The Key ID (visible in the "View Key Details" page).
+            "secret": config("APPLE_KEYID"),
+            # Member ID/App ID Prefix -- you can find it below your name
+            # at the top right corner of the page, or it’s your App ID
+            # Prefix in your App ID.
+            "key": config("MEMAPPIDPREFIX"),
+            "settings": {
+                # The certificate you downloaded when generating the key.
+                "certificate_key": config("CERTIFICATE_KEY")
+            },
+        }
+    },
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
@@ -116,15 +184,14 @@ USE_I18N = True
 USE_TZ = True
 
 
+# Django's static and media files setup
+STATICFILES_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
-STATICFILES_STORAGE = "storages.backends.s3boto3.S3StaticStorage"
 
 # # Static files (CSS, JavaScript, Images)
 STATIC_URL = "/static/"
-STATIC_ROOT = BASE_DIR / "static"
 
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
 
 AWS_ACCESS_KEY_ID = config("S3_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = config("S3_SECRET_ACCESS_KEY")
@@ -135,3 +202,12 @@ AWS_DEFAULT_ACL = "public-read"
 AWS_QUERYSTRING_AUTH = False
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_AUTHENTICATION_METHOD = "email"
+
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_USERNAME_REQUIRED = False
+SITE_ID = 1

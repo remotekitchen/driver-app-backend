@@ -1,21 +1,5 @@
-from accounts.api.adapters import AppleOAuth2Adapter, GoogleOAuth2Adapter
-from accounts.api.base.serializers import (
-    BaseChangePasswordSerializer,
-    BaseContactSerializer,
-    BaseEmailPasswordLoginSerializer,
-    BaseRestaurantUserGETSerializer,
-    BaseRestaurantUserSerializer,
-    BaseUserAddressSerializer,
-    BaseUserSerializer,
-    SocialLoginSerializer,
-)
-from accounts.api.v1.serializers import UserSerializer
-from accounts.models import Contacts, RestaurantUser, User, UserAddress
 from allauth.socialaccount.providers.apple.client import AppleOAuth2Client
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
-from billing.models import Order
-from core.api.mixins import GetObjectWithParamMixin
-from core.utils import get_debug_str, get_logger
 from dj_rest_auth.registration.views import SocialConnectView, SocialLoginView
 from django.db.models import Q
 from django.utils import timezone
@@ -33,8 +17,18 @@ from rest_framework.generics import (
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework import generics
 
-logger = get_logger()
+from apps.accounts.api.adapters import AppleOAuth2Adapter, GoogleOAuth2Adapter
+from apps.accounts.api.base.serializers import (
+    BaseChangePasswordSerializer,
+    BaseEmailPasswordLoginSerializer,
+    BaseUserSerializer,
+    SocialLoginSerializer,
+)
+from apps.accounts.api.v1.serializers import UserSerializer, ProfileSerializer, VehicleSerializer
+from apps.accounts.models import User, Profile, Vehicle
+from django.shortcuts import get_object_or_404
 
 
 class AbstractBaseLoginView(GenericAPIView):
@@ -44,38 +38,16 @@ class AbstractBaseLoginView(GenericAPIView):
         abstract = True
 
     def post(self, request, *args, **kwargs):
-        current_dt = timezone.now()
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
-            logger.error(get_debug_str(request, request.user, serializer.errors))
             raise ValidationError(serializer.errors)
 
         user = serializer.validated_data.get("user")
-        created = user.date_joined >= current_dt
-        direct_order = request.query_params.get("direct_order", False)
-        if not direct_order and user.role == User.RoleType.NA:
-            raise PermissionDenied("User does not have any company!")
 
         user_serializer = UserSerializer(instance=user, context={"request": request})
         token, _ = Token.objects.get_or_create(user=user)
 
-        resp = {
-            "token": token.key,
-            "user_info": user_serializer.data,
-            "created": created,
-        }
-
-        # Get or Create a RestaurantUser instance for the logged in user
-        restaurant = self.request.data.get("restaurant", None)
-        location = self.request.data.get("location", None)
-        if restaurant is not None:
-            obj = RestaurantUser.objects.get_or_create(
-                user=user, restaurant_id=restaurant
-            )[0]
-            resp["restaurantUser"] = BaseRestaurantUserSerializer(obj).data
-
-            resp["is_old_user"] = user.is_old_user(restaurant=restaurant)
-
+        resp = {"token": token.key, "user_info": user_serializer.data}
         return Response(resp, status=status.HTTP_200_OK)
 
 
@@ -159,31 +131,151 @@ class BaseChangePasswordAPIView(UpdateAPIView):
         return Response(UserSerializer(instance=self.get_object()).data)
 
 
-class BaseUserAddressListCreateAPIView(ListCreateAPIView):
-    serializer_class = BaseUserAddressSerializer
+
+
+
+
+
+class BaseProfileAPIView(APIView):
+    permission_classes = [IsAuthenticated]  
+    serializer_class = ProfileSerializer
+
+    def get(self, request, pk=None):
+        if not request.user.is_authenticated:
+            return self.handle_response({}, status_code=status.HTTP_401_UNAUTHORIZED, error="Authentication required")
+
+        if pk:
+            profile = self.get_object(pk, request.user)
+            if not profile:
+                return self.handle_response({}, status_code=status.HTTP_404_NOT_FOUND, error="Profile not found")
+            serializer = self.serializer_class(profile)
+            return self.handle_response(serializer.data)
+        else:
+            profiles = Profile.objects.filter(user=request.user)
+            serializer = self.serializer_class(profiles, many=True)
+            return self.handle_response(serializer.data)
+
+    def post(self, request):
+        if not request.user.is_authenticated:
+            return self.handle_response({}, status_code=status.HTTP_401_UNAUTHORIZED, error="Authentication required")
+        
+        try:
+            serializer = self.serializer_class(data=request.data)
+            if serializer.is_valid():
+                serializer.save(user=request.user)
+                return self.handle_response(serializer.data, status_code=status.HTTP_201_CREATED)
+            return self.handle_response(serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return self.handle_response({}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, error=str(e))
+
+    def put(self, request, pk):
+        if not request.user.is_authenticated:
+            return self.handle_response({}, status_code=status.HTTP_401_UNAUTHORIZED, error="Authentication required")
+        
+        profile = self.get_object(pk, request.user)
+        if not profile:
+            return self.handle_response({}, status_code=status.HTTP_404_NOT_FOUND, error="Profile not found")
+        
+        try:
+            serializer = self.serializer_class(profile, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return self.handle_response(serializer.data)
+            return self.handle_response(serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return self.handle_response({}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, error=str(e))
+
+    def delete(self, request, pk):
+        if not request.user.is_authenticated:
+            return self.handle_response({}, status_code=status.HTTP_401_UNAUTHORIZED, error="Authentication required")
+        
+        profile = self.get_object(pk, request.user)
+        if not profile:
+            return self.handle_response({}, status_code=status.HTTP_404_NOT_FOUND, error="Profile not found")
+        profile.delete()
+        return self.handle_response({"message": "Profile deleted successfully"}, status_code=status.HTTP_204_NO_CONTENT)
+
+    def get_object(self, pk, user):
+        try:
+            return Profile.objects.get(pk=pk, user=user)
+        except Profile.DoesNotExist:
+            return None
+
+    def handle_response(self, data, status_code=status.HTTP_200_OK, error=None):
+        if error:
+            return Response({'error': error}, status=status_code)
+        return Response(data, status=status_code)
+    
+
+
+
+
+class BaseVehicleAPIView(APIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = VehicleSerializer
 
-    def get_queryset(self):
-        is_default = self.request.query_params.get("is_default", None)
-        if is_default:
-            return UserAddress.objects.filter(user=self.request.user, is_default=True)
-        return UserAddress.objects.filter(user=self.request.user)
+    def get(self, request, pk=None):
+        if not request.user.is_authenticated:
+            return self.handle_response({}, status_code=status.HTTP_401_UNAUTHORIZED, error="Authentication required")
 
-    def perform_create(self, serializer):
-        if serializer.validated_data.get("is_default"):
-            UserAddress.objects.filter(user=self.request.user).update(is_default=False)
-        serializer.save(user=self.request.user)
+        if pk:
+            vehicle = self.get_object(pk, request.user)
+            if not vehicle:
+                return self.handle_response({}, status_code=status.HTTP_404_NOT_FOUND, error="Vehicle not found")
+            serializer = self.serializer_class(vehicle)
+            return self.handle_response(serializer.data)
+        else:
+            vehicles = Vehicle.objects.filter(user=request.user)
+            serializer = self.serializer_class(vehicles, many=True)
+            return self.handle_response(serializer.data)
 
+    def post(self, request):
+        if not request.user.is_authenticated:
+            return self.handle_response({}, status_code=status.HTTP_401_UNAUTHORIZED, error="Authentication required")
+        
+        try:
+            serializer = self.serializer_class(data=request.data)
+            if serializer.is_valid():
+                serializer.save(user=request.user)
+                return self.handle_response(serializer.data, status_code=status.HTTP_201_CREATED)
+            return self.handle_response(serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return self.handle_response({}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, error=str(e))
 
-class BaseUserAddressRetrieveUpdateDestroyAPIView(
-    GetObjectWithParamMixin, RetrieveUpdateDestroyAPIView
-):
-    serializer_class = BaseUserAddressSerializer
-    permission_classes = [IsAuthenticated, IsObjOwner]
-    filterset_fields = ["id"]
-    model_class = UserAddress
+    def put(self, request, pk):
+        if not request.user.is_authenticated:
+            return self.handle_response({}, status_code=status.HTTP_401_UNAUTHORIZED, error="Authentication required")
+        
+        vehicle = self.get_object(pk, request.user)
+        if not vehicle:
+            return self.handle_response({}, status_code=status.HTTP_404_NOT_FOUND, error="Vehicle not found")
+        
+        try:
+            serializer = self.serializer_class(vehicle, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return self.handle_response(serializer.data)
+            return self.handle_response(serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return self.handle_response({}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, error=str(e))
 
-    def patch(self, request, *args, **kwargs):
-        if "is_default" in request.data and request.data["is_default"] is True:
-            UserAddress.objects.filter(user=request.user).update(is_default=False)
-        return self.partial_update(request, *args, **kwargs)
+    def delete(self, request, pk):
+        if not request.user.is_authenticated:
+            return self.handle_response({}, status_code=status.HTTP_401_UNAUTHORIZED, error="Authentication required")
+        
+        vehicle = self.get_object(pk, request.user)
+        if not vehicle:
+            return self.handle_response({}, status_code=status.HTTP_404_NOT_FOUND, error="Vehicle not found")
+        vehicle.delete()
+        return self.handle_response({"message": "Vehicle deleted successfully"}, status_code=status.HTTP_204_NO_CONTENT)
+
+    def get_object(self, pk, user):
+        try:
+            return Vehicle.objects.get(pk=pk, user=user)
+        except Vehicle.DoesNotExist:
+            return None
+
+    def handle_response(self, data, status_code=status.HTTP_200_OK, error=None):
+        if error:
+            return Response({'error': error}, status=status_code)
+        return Response(data, status=status_code)

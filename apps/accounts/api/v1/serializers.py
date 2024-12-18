@@ -1,4 +1,10 @@
-from accounts.api.base.serializers import BaseUserSerializer, BaseEmailPasswordLoginSerializer, BaseChangePasswordSerializer, BaseRestaurantUserSerializer, BaseUserAddressSerializer
+from apps.accounts.api.base.serializers import (
+    BaseChangePasswordSerializer,
+    BaseEmailPasswordLoginSerializer,
+    BaseUserSerializer,
+    BaseProfileSerializer,
+    BaseVehicleSerializer
+)
 
 
 class UserSerializer(BaseUserSerializer):
@@ -13,9 +19,9 @@ class ChangePasswordSerializer(BaseChangePasswordSerializer):
     pass
 
 
-class RestaurantUserSerializer(BaseRestaurantUserSerializer):
+class ProfileSerializer(BaseProfileSerializer):
     pass
 
 
-class UserAddressSerializer(BaseUserAddressSerializer):
+class VehicleSerializer(BaseVehicleSerializer):
     pass
