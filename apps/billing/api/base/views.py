@@ -33,7 +33,8 @@ class BaseCreateDeliveryAPIView(APIView):
         serializer.save()
 
         instance = serializer.instance
-        drop_address = f"{instance.drop_off_address.street_address} {instance.drop_off_address.city} {instance.drop_off_address.state} {instance.drop_off_address.postal_code} {instance.drop_off_address.country} "
+        # drop_address = f"{instance.drop_off_address.street_address} {instance.drop_off_address.city} {instance.drop_off_address.state} {instance.drop_off_address.postal_code} {instance.drop_off_address.country} "
+        drop_address = f"{instance.drop_off_address.drop_address}"
 
         drop_off_pointer = self.get_lat(drop_address, instance.use_google)
         distance = self.get_distance_between_coords(
