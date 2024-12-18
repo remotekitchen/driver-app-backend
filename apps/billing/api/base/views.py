@@ -33,8 +33,8 @@ class BaseCreateDeliveryAPIView(APIView):
         serializer.save()
 
         instance = serializer.instance
-        # drop_address = f"{instance.drop_off_address.street_address} {instance.drop_off_address.city} {instance.drop_off_address.state} {instance.drop_off_address.postal_code} {instance.drop_off_address.country} "
-        drop_address = f"{instance.drop_off_address.drop_address}"
+        drop_address = f"{instance.drop_off_address.street_address} {instance.drop_off_address.city} {instance.drop_off_address.state} {instance.drop_off_address.postal_code} {instance.drop_off_address.country} "
+        # drop_address = f"{instance.drop_off_address.drop_address}"
 
         drop_off_pointer = self.get_lat(drop_address, instance.use_google)
         distance = self.get_distance_between_coords(
@@ -192,8 +192,8 @@ class BaseCheckAddressAPIView(BaseCreateDeliveryAPIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.data.copy()
 
-        # drop_address = f"{data.get("drop_off_address").get("street_address")} {data.get("drop_off_address").get("city")} {data.get("drop_off_address").get("state")} {data.get("drop_off_address").get("postal_code")} {data.get("drop_off_address").get("country")} "
-        drop_address = f"{data.get('drop_off_address').get('drop_address')}"
+        drop_address = f"{data.get("drop_off_address").get("street_address")} {data.get("drop_off_address").get("city")} {data.get("drop_off_address").get("state")} {data.get("drop_off_address").get("postal_code")} {data.get("drop_off_address").get("country")} "
+        # drop_address = f"{data.get('drop_off_address').get('drop_address')}"
 
         drop_off_pointer = self.get_lat(drop_address, data.get("use_google"))
         print(drop_off_pointer)
