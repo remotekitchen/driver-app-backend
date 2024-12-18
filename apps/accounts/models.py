@@ -60,6 +60,7 @@ class User(AbstractUser):
         verbose_name=_("User permissions"),
         help_text=_("Specific permissions for this user."),
     )
+  
 
     objects = UserManager()
 
