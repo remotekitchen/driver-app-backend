@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.accounts",
     "apps.billing",
+    'templates',
 ]
 
 AUTH_USER_MODEL = "accounts.User"
@@ -74,7 +75,7 @@ ROOT_URLCONF = "delivery.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [

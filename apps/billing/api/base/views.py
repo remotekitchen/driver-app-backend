@@ -192,7 +192,13 @@ class BaseCheckAddressAPIView(BaseCreateDeliveryAPIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.data.copy()
 
-        drop_address = f"{data.get("drop_off_address").get("street_address")} {data.get("drop_off_address").get("city")} {data.get("drop_off_address").get("state")} {data.get("drop_off_address").get("postal_code")} {data.get("drop_off_address").get("country")} "
+        drop_address = " ".join([
+              data.get("drop_off_address", {}).get("street_address", ""),
+              data.get("drop_off_address", {}).get("city", ""),
+              data.get("drop_off_address", {}).get("state", ""),
+              data.get("drop_off_address", {}).get("postal_code", ""),
+              data.get("drop_off_address", {}).get("country", ""),
+          ]).strip()
         # drop_address = f"{data.get('drop_off_address').get('drop_address')}"
 
         drop_off_pointer = self.get_lat(drop_address, data.get("use_google"))

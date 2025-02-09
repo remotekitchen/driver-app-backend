@@ -129,13 +129,7 @@ class BaseChangePasswordAPIView(UpdateAPIView):
     def patch(self, request, *args, **kwargs):
         self.partial_update(request, *args, **kwargs)
         return Response(UserSerializer(instance=self.get_object()).data)
-
-
-
-
-
-
-
+      
 class BaseProfileAPIView(APIView):
     permission_classes = [IsAuthenticated]  
     serializer_class = ProfileSerializer
