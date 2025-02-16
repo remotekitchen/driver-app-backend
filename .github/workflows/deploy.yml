@@ -17,10 +17,10 @@ jobs:
           key: ${{ secrets.DIGITALOCEAN_PRIVATE_KEY }}
           port: ${{ secrets.DIGITALOCEAN_PORT }}
           script: |
-            cd ~/chatchef_dir
+            cd ~/driver-app-backend
             git stash
             git pull
             source venv/bin/activate
             pip install -r requirements.txt
             python manage.py migrate
-            sudo service gunicorn_chatchef restart
+            sudo service gunicorn_raider restart
