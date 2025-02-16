@@ -30,7 +30,6 @@ from apps.accounts.api.v1.serializers import UserSerializer, ProfileSerializer, 
 from apps.accounts.models import User, Profile, Vehicle
 from django.shortcuts import get_object_or_404
 
-# test commit
 class AbstractBaseLoginView(GenericAPIView):
     authentication_classes = []
 
