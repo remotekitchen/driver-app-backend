@@ -31,6 +31,7 @@ from apps.accounts.models import User, Profile, Vehicle
 from django.shortcuts import get_object_or_404
 
 # test comments
+# another test commit
 class AbstractBaseLoginView(GenericAPIView):
     authentication_classes = []
 
