@@ -1,0 +1,26 @@
+name: Deploy to DigitalOcean dev
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy the app
+        uses: appleboy/ssh-action@master
+        with:
+          host:  ${{ secrets.DIGITALOCEAN_HOST_TEST }}
+          username: ${{ secrets.DIGITALOCEAN_USERNAME_TEST }}
+          key: ${{ secrets.DIGITALOCEAN_PRIVATE_KEY_TEST }}
+          port: ${{ secrets.DIGITALOCEAN_PORT_TEST }}
+          script: |
+            cd ~/raider_dev_dir/driver-app-backend
+            git stash
+            git pull
+            source venv/bin/activate
+            pip install -r requirements.txt
+            python manage.py migrate
+            sudo service gunicorn_raider_dev restart
