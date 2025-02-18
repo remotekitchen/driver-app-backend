@@ -5,7 +5,6 @@ from django.utils.translation import gettext_lazy as _
 from apps.accounts.managers import ProfileManager, UserManager
 from apps.core.models import Address, BaseModel
 
-
 class User(AbstractUser):
     class RoleType(models.TextChoices):
         OWNER = "owner", _("Owner")
@@ -66,6 +65,9 @@ class User(AbstractUser):
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
+    
+    def activeStatus(self):
+        return self.is_active
 
     def __str__(self):
         return self.email
@@ -137,6 +139,9 @@ class Profile(BaseModel):
         verbose_name=_("nominee address"),
         related_name="nominee_address",
     )
+    
+    is_active = models.BooleanField(
+        verbose_name=_("Is active"), default=True, help_text=_("Designates whether this user should be treated as active."))
 
     objects = ProfileManager()
 

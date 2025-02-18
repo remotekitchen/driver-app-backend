@@ -9,7 +9,7 @@ from apps.accounts.api.base.views import (
     BaseUserRegistrationAPIView,
     BaseUserRetrieveUpdateDestroyAPIView,
     BaseProfileAPIView,
-    BaseVehicleAPIView
+    BaseVehicleAPIView,
 )
 from apps.accounts.api.v1.serializers import ChangePasswordSerializer, UserSerializer
 
@@ -53,4 +53,3 @@ class ProfileAPIView(BaseProfileAPIView):
 
 class VehicleAPIView(BaseVehicleAPIView):
     pass
-

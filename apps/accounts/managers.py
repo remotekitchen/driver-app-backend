@@ -51,6 +51,7 @@ class ProfileManager(models.Manager):
             driving_license=profile_data.get('driving_license'),
             driving_license_front=profile_data.get('driving_license_front'),
             driving_license_back=profile_data.get('driving_license_back'),
+          
         )
 
     def update_profile(self, profile, profile_data):
