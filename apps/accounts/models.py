@@ -5,7 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from apps.accounts.managers import ProfileManager, UserManager
 from apps.core.models import Address, BaseModel
 
-
+# test comments
 class User(AbstractUser):
     class RoleType(models.TextChoices):
         OWNER = "owner", _("Owner")

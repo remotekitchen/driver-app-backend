@@ -116,6 +116,8 @@ class Delivery(BaseModel):
     cancel_reason = models.CharField(max_length=255, blank=True, null=True)
 
     items = models.JSONField(default=dict)
+    
+    assigned = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.id} :: {self.client_id}"

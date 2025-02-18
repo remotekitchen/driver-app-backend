@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.billing",
     'templates',
+    'django_extensions'
 ]
 
 AUTH_USER_MODEL = "accounts.User"

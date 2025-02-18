@@ -10,6 +10,7 @@ dj-rest-auth==6.0.0
 Django==5.0.3
 django-allauth==0.50.0
 django-cors-headers==4.5.0
+django-extensions==3.2.3
 django-filter==24.3
 django-rest-passwordreset==1.4.2
 django-storages==1.14.4
@@ -32,4 +33,5 @@ requests-oauthlib==2.0.0
 s3transfer==0.10.3
 six==1.16.0
 sqlparse==0.5.1
+typing_extensions==4.12.2
 urllib3==2.2.3
