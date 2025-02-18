@@ -10,6 +10,9 @@ from rest_framework import status
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.db import transaction
+from django.utils import timezone
+from datetime import timedelta
 
 from apps.billing.api.base.serializers import (
     BaseCancelDeliverySerializer,
@@ -51,9 +54,9 @@ class BaseCreateDeliveryAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        driver = self.assign_driver_based_on_location(
-            instance.pickup_latitude, instance.pickup_longitude
-        )
+        # driver = self.assign_driver_based_on_location(
+        #     instance.pickup_latitude, instance.pickup_longitude
+        # )
 
         fees = self.calculate_fees(distance)
 
@@ -61,8 +64,9 @@ class BaseCreateDeliveryAPIView(APIView):
         instance.drop_off_longitude = drop_off_pointer.get("lng")
         instance.distance = distance
         instance.fees = fees
-        instance.driver = driver
-        instance.status = Delivery.STATUS_TYPE.DRIVER_ASSIGNED
+        # instance.driver = driver
+        instance.assigned = False
+        instance.status = Delivery.STATUS_TYPE.WAITING_FOR_DRIVER
         instance.save()
 
         sr = DeliveryGETSerializer(instance)
@@ -152,10 +156,37 @@ class BaseCreateDeliveryAPIView(APIView):
             print(f"Error: {response.status_code}")
             return None
 
-    def assign_driver_based_on_location(self, lat, lng):
+    # def assign_driver_based_on_location(self, lat, lng):
+    #     earth_radius_km = 6371
+    #     nearby_drivers = (
+    #         User.objects.filter()
+    #         .annotate(
+    #             distance=ExpressionWrapper(
+    #                 earth_radius_km
+    #                 * ACos(
+    #                     Cos(Radians(lat))
+    #                     * Cos(Radians(F("latitude")))
+    #                     * Cos(Radians(F("longitude")) - Radians(lng))
+    #                     + Sin(Radians(lat)) * Sin(Radians(F("latitude")))
+    #                 ),
+    #                 output_field=FloatField(),
+    #             )
+    #         )
+    #         .filter(~Q(distance__isnull=True))
+    #         .order_by("distance")
+    #     )
+
+    #     if nearby_drivers.exists():
+    #         return nearby_drivers.first()
+    #     return None
+    def get_nearby_drivers(self, lat, lng, radius_km=5):
+        """
+        Returns a queryset of drivers within the given radius.
+        """
         earth_radius_km = 6371
+
         nearby_drivers = (
-            User.objects.filter()
+            User.objects.filter(is_driver=True, is_available=True)  # Assuming you track available drivers
             .annotate(
                 distance=ExpressionWrapper(
                     earth_radius_km
@@ -168,13 +199,11 @@ class BaseCreateDeliveryAPIView(APIView):
                     output_field=FloatField(),
                 )
             )
-            .filter(~Q(distance__isnull=True))
+            .filter(distance__lte=radius_km)  # Get drivers within the radius
             .order_by("distance")
         )
 
-        if nearby_drivers.exists():
-            return nearby_drivers.first()
-        return None
+        return nearby_drivers
 
     def calculate_fees(self, distance):
         fee_per_km = (
@@ -261,3 +290,109 @@ class BaseCancelDeliveryAPIView(APIView):
         delivery.reason = reason
         delivery.save()
         return Response({"message": "delivery canceled!"}, status=status.HTTP_200_OK)
+      
+      
+class BaseAvailableOrdersApiView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """
+        Returns available delivery orders near the authenticated driver.
+        Only includes orders created within the last hour.
+        """
+        driver = request.user
+
+        # Ensure the driver has latitude and longitude
+        if not driver.latitude or not driver.longitude:
+            return Response(
+                {"message": "Driver location is not set."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        driver_lat = driver.latitude
+        driver_lng = driver.longitude
+
+        # Define the search radius (e.g., 5 km)
+        search_radius_km = 5
+        earth_radius_km = 6371
+
+        # Get the time 1 hour ago from now
+        one_hour_ago = timezone.now() - timedelta(hours=3)
+
+        # Find available deliveries within the radius and created within the last hour
+        available_orders = (
+            Delivery.objects.filter(
+                status=Delivery.STATUS_TYPE.WAITING_FOR_DRIVER,
+                created_date__gte=one_hour_ago  # Only include orders created within the last hour
+            )
+            .annotate(
+                calculated_distance=ExpressionWrapper(
+                    earth_radius_km
+                    * ACos(
+                        Cos(Radians(driver_lat))
+                        * Cos(Radians(F("pickup_latitude")))
+                        * Cos(Radians(F("pickup_longitude")) - Radians(driver_lng))
+                        + Sin(Radians(driver_lat)) * Sin(Radians(F("pickup_latitude")))
+                    ),
+                    output_field=FloatField(),
+                )
+            )
+            .filter(calculated_distance__lte=search_radius_km)  # Use new annotation name
+            .order_by("calculated_distance")
+        )
+
+        serializer = DeliveryGETSerializer(available_orders, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+      
+      
+class BaseAcceptOrderApiView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, client_id):
+        """
+        Assigns the order to the first driver who accepts it.
+        """
+        driver = request.user  # Authenticated driver
+        order = Delivery.objects.get(client_id=client_id, assigned=False)
+        print(f"Order Type: {type(order)}, Client ID Type: {type(client_id)} --> client_id")
+
+        
+
+        try:
+            with transaction.atomic():  # Prevent race conditions
+                order = Delivery.objects.select_for_update().get(client_id=client_id, assigned=False)
+                
+
+                if order.status != Delivery.STATUS_TYPE.WAITING_FOR_DRIVER:
+                    return Response(
+                        {"message": "Order is not available."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                order.driver = driver
+                order.status = Delivery.STATUS_TYPE.DRIVER_ASSIGNED
+                order.assigned = True
+                order.save()
+
+                return Response(
+                    {"message": "Order assigned successfully!", "order_id": order.id},
+                    status=status.HTTP_200_OK,
+                )
+
+        except Delivery.DoesNotExist:
+            return Response(
+                {"message": "Order has already been assigned or does not exist."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+class BaseDriverAssignedOrdersApiView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        assigned_orders = Delivery.objects.filter(
+            driver=request.user, status=Delivery.STATUS_TYPE.DRIVER_ASSIGNED
+        ).order_by("id")
+        
+        sr = DeliveryGETSerializer(assigned_orders, many=True)
+        return Response(sr.data, status=status.HTTP_200_OK)
