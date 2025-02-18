@@ -297,33 +297,40 @@ class BaseAvailableOrdersApiView(APIView):
 
     def get(self, request):
         """
-        Returns available delivery orders near the authenticated driver.
-        Only includes orders created within the last hour.
+        Returns available delivery orders near the given latitude and longitude.
+        Only includes orders created within the last 3 hours.
         """
-        driver = request.user
+        driver_lat = request.GET.get("latitude")
+        driver_lng = request.GET.get("longitude")
 
-        # Ensure the driver has latitude and longitude
-        if not driver.latitude or not driver.longitude:
+        # Validate that latitude and longitude are provided
+        if not driver_lat or not driver_lng:
             return Response(
-                {"message": "Driver location is not set."},
+                {"message": "Latitude and longitude are required."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        driver_lat = driver.latitude
-        driver_lng = driver.longitude
+        try:
+            driver_lat = float(driver_lat)
+            driver_lng = float(driver_lng)
+        except ValueError:
+            return Response(
+                {"message": "Invalid latitude or longitude format."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Define the search radius (e.g., 5 km)
         search_radius_km = 5
         earth_radius_km = 6371
 
-        # Get the time 1 hour ago from now
-        one_hour_ago = timezone.now() - timedelta(hours=3)
+        # Get the time 3 hours ago from now
+        three_hours_ago = timezone.now() - timedelta(hours=3)
 
-        # Find available deliveries within the radius and created within the last hour
+        # Find available deliveries within the radius and created within the last 3 hours
         available_orders = (
             Delivery.objects.filter(
                 status=Delivery.STATUS_TYPE.WAITING_FOR_DRIVER,
-                created_date__gte=one_hour_ago  # Only include orders created within the last hour
+                created_date__gte=three_hours_ago  # Only include orders created within the last 3 hours
             )
             .annotate(
                 calculated_distance=ExpressionWrapper(
