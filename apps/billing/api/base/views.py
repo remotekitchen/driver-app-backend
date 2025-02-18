@@ -249,17 +249,17 @@ class BaseCheckAddressAPIView(BaseCreateDeliveryAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        driver = self.assign_driver_based_on_location(
-            data.get("pickup_latitude"), data.get("pickup_longitude")
-        )
+        # driver = self.assign_driver_based_on_location(
+        #     data.get("pickup_latitude"), data.get("pickup_longitude")
+        # )
 
-        if not driver:
-            return Response(
-                "We can not deliver to this address!",
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        # if not driver:
+        #     return Response(
+        #         "We can not deliver to this address!",
+        #         status=status.HTTP_400_BAD_REQUEST,
+        #     )
 
-        data.pop("driver")
+        # data.pop("driver")
         fees = self.calculate_fees(distance)
 
         data["distance"] = distance
