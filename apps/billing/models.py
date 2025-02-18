@@ -104,6 +104,7 @@ class Delivery(BaseModel):
     discount = models.FloatField(default=0)
     cash_collected = models.FloatField(default=0)
     amount = models.FloatField(default=0)
+    driver_earning = models.FloatField(default=0)
 
     payment_type = models.CharField(
         max_length=50,
@@ -118,6 +119,27 @@ class Delivery(BaseModel):
     items = models.JSONField(default=dict)
     
     assigned = models.BooleanField(default=False)
+
+    def calculate_driver_earning(self):
+        """
+        Automatically calculate the driver's earnings when a Delivery instance is created/updated.
+        """
+
+        # Define the base values (these can be customized)
+        base_fee = 25  # Tk
+        peak_hour_bonus = 0  # Default to 0, can be updated dynamically
+        incentives = 0  # Default to 0, can be updated dynamically
+        additional_bonuses = 0  # Default to 0, can be updated dynamically
+
+        # Calculate driver earnings
+        self.driver_earning = base_fee + self.fees + peak_hour_bonus + incentives + additional_bonuses
+
+    def save(self, *args, **kwargs):
+        """
+        Override the save method to calculate driver earnings automatically before saving.
+        """
+        self.calculate_driver_earning()  # Call earning calculation before saving
+        super().save(*args, **kwargs)  # Proceed with saving the instance
 
     def __str__(self):
         return f"{self.id} :: {self.client_id}"
