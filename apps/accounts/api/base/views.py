@@ -43,6 +43,7 @@ class AbstractBaseLoginView(GenericAPIView):
             raise ValidationError(serializer.errors)
 
         user = serializer.validated_data.get("user")
+        
 
         user_serializer = UserSerializer(instance=user, context={"request": request})
         token, _ = Token.objects.get_or_create(user=user)
@@ -273,3 +274,4 @@ class BaseVehicleAPIView(APIView):
         if error:
             return Response({'error': error}, status=status_code)
         return Response(data, status=status_code)
+      
