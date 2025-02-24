@@ -2,15 +2,35 @@ import requests
 from decouple import config
 
 from apps.billing.models import Delivery
+from django.forms.models import model_to_dict
+from datetime import datetime
+from apps.billing.api.base.serializers import DeliveryGETSerializer
+
+def serialize_datetime(value):
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return value
+  
+
 
 
 def client_status_updater(instance: Delivery):
     url = config("CHATCHEFS_URL")
+    
+  
+    print(instance.driver.rider_profile, 'instance.driver')
+    
+    serializer = DeliveryGETSerializer(instance)
+    
+    print(serializer.data, 'serializer.data')
+
+        
     data = {
         "event": "status",
         "client_id": instance.client_id,
         "uid": f"{instance.uid}",
         "status": instance.status,
+        "driver_info": [serializer.data['driver']],
     }
     res = requests.post(
         url,
