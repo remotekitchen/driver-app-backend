@@ -119,6 +119,8 @@ class Delivery(BaseModel):
     items = models.JSONField(default=dict)
     
     assigned = models.BooleanField(default=False)
+    
+    delivered_product_image = models.ImageField(upload_to="delivery_product_images", blank=True, null=True)
 
     def calculate_driver_earning(self):
         """
