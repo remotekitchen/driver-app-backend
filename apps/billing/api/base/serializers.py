@@ -42,6 +42,17 @@ class BaseDeliverySerializer(WritableNestedModelSerializer):
         model = Delivery
         fields = "__all__"
 
+    def validate(self, attrs):
+        # Determine the new status; if not provided in attrs, fall back to the current instance.
+        new_status = attrs.get('status', self.instance.status if self.instance else None)
+        # Try to get the delivery image from incoming data, or use the existing image on the instance.
+        new_image = attrs.get('delivered_product_image', self.instance.delivered_product_image if self.instance else None)
+        
+        # If updating status to DELIVERY_SUCCESS, require an image.
+        if new_status == Delivery.STATUS_TYPE.DELIVERY_SUCCESS and not new_image:
+            raise serializers.ValidationError("An image is required to update the status to DELIVERY_SUCCESS.")
+        
+        return attrs
 
 class DeliveryCreateSerializer(BaseDeliverySerializer):
     pickup_address = BaseAddressSerializer()
