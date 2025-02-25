@@ -85,7 +85,12 @@ class BaseCreateDeliveryAPIView(APIView):
         return self.get_distance_mapbox(lat1, lng1, lat2, lng2)
 
     def get_geo_using_gmaps(self, address):
+      
         try:
+          # count the api call
+            print("API Call")
+          
+          
             geocode_result = gmaps.geocode(address)
             if geocode_result:
                 location = geocode_result[0].get("geometry", {}).get("location", {})
@@ -158,29 +163,29 @@ class BaseCreateDeliveryAPIView(APIView):
             print(f"Error: {response.status_code}")
             return None
 
-    # def assign_driver_based_on_location(self, lat, lng):
-    #     earth_radius_km = 6371
-    #     nearby_drivers = (
-    #         User.objects.filter()
-    #         .annotate(
-    #             distance=ExpressionWrapper(
-    #                 earth_radius_km
-    #                 * ACos(
-    #                     Cos(Radians(lat))
-    #                     * Cos(Radians(F("latitude")))
-    #                     * Cos(Radians(F("longitude")) - Radians(lng))
-    #                     + Sin(Radians(lat)) * Sin(Radians(F("latitude")))
-    #                 ),
-    #                 output_field=FloatField(),
-    #             )
-    #         )
-    #         .filter(~Q(distance__isnull=True))
-    #         .order_by("distance")
-    #     )
+    def assign_driver_based_on_location(self, lat, lng):
+        earth_radius_km = 6371
+        nearby_drivers = (
+            User.objects.filter()
+            .annotate(
+                distance=ExpressionWrapper(
+                    earth_radius_km
+                    * ACos(
+                        Cos(Radians(lat))
+                        * Cos(Radians(F("latitude")))
+                        * Cos(Radians(F("longitude")) - Radians(lng))
+                        + Sin(Radians(lat)) * Sin(Radians(F("latitude")))
+                    ),
+                    output_field=FloatField(),
+                )
+            )
+            .filter(~Q(distance__isnull=True))
+            .order_by("distance")
+        )
 
-    #     if nearby_drivers.exists():
-    #         return nearby_drivers.first()
-    #     return None
+        if nearby_drivers.exists():
+            return nearby_drivers.first()
+        return None
     def get_nearby_drivers(self, lat, lng, radius_km=5):
         """
         Returns a queryset of drivers within the given radius.
