@@ -85,7 +85,12 @@ class BaseCreateDeliveryAPIView(APIView):
         return self.get_distance_mapbox(lat1, lng1, lat2, lng2)
 
     def get_geo_using_gmaps(self, address):
+      
         try:
+          # count the api call
+            print("API Call")
+          
+          
             geocode_result = gmaps.geocode(address)
             if geocode_result:
                 location = geocode_result[0].get("geometry", {}).get("location", {})
