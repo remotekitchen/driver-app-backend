@@ -36,7 +36,6 @@ class BaseUserSerializer(serializers.ModelSerializer):
             "phone",
             "date_of_birth"
         ]
-        read_only_fields = ["email"]
 
     def get_name(self, obj: User):
         return f"{obj.first_name} {obj.last_name}"
