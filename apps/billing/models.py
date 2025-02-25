@@ -128,7 +128,7 @@ class Delivery(BaseModel):
         """
 
         # Define the base values (these can be customized)
-        base_fee = 25  # Tk
+        base_fee = 10  # Tk
         peak_hour_bonus = 0  # Default to 0, can be updated dynamically
         incentives = 0  # Default to 0, can be updated dynamically
         additional_bonuses = 0  # Default to 0, can be updated dynamically
