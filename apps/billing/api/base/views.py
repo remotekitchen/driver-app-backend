@@ -322,7 +322,7 @@ class BaseAvailableOrdersApiView(APIView):
             )
 
         # Define the search radius (e.g., 5 km)
-        search_radius_km = 5
+        search_radius_km = 3
         earth_radius_km = 6371
 
         # Get the time 3 hours ago from now
