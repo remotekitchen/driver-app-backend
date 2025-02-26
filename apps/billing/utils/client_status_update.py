@@ -10,12 +10,11 @@ def serialize_datetime(value):
     if isinstance(value, datetime):
         return value.isoformat()
     return value
-  
-
-
 
 def client_status_updater(instance: Delivery):
+    print("client_status_updater----------->")
     url = config("CHATCHEFS_URL")
+    print(url, 'url------------>')
     
   
     print(instance.driver.rider_profile, 'instance.driver')
@@ -40,5 +39,5 @@ def client_status_updater(instance: Delivery):
         json=data,
         allow_redirects=False,
     )
-    print(res)
+    print(res, 'res----------->')
     return
