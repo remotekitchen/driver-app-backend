@@ -174,6 +174,8 @@ SOCIALACCOUNT_PROVIDERS = {
     },
 }
 
+CORS_ALLOW_ALL_ORIGINS = True
+
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
 
