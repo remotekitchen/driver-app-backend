@@ -40,6 +40,9 @@ class BaseCreateDeliveryAPIView(APIView):
         instance = serializer.instance
         drop_address = f"{instance.drop_off_address.street_address} {instance.drop_off_address.city} {instance.drop_off_address.state} {instance.drop_off_address.postal_code} {instance.drop_off_address.country} "
         # drop_address = f"{instance.drop_off_address.drop_address}"
+        
+        print(drop_address, 'drop_address--------------->')
+        print(instance.use_google, 'use_google--------------->')
 
         drop_off_pointer = self.get_lat(drop_address, instance.use_google)
         distance = self.get_distance_between_coords(
@@ -74,23 +77,21 @@ class BaseCreateDeliveryAPIView(APIView):
         sr = DeliveryGETSerializer(instance)
         return Response(sr.data)
 
-    def get_lat(self, address, use_google=False):
+    def get_lat(self, address, use_google=True):
         if use_google:
             return self.get_geo_using_gmaps(address)
-        return self.get_geo_mapbox(address)
+        return self.get_geo_using_gmaps(address)
 
-    def get_distance_between_coords(self, lat1, lng1, lat2, lng2, use_google=False):
+    def get_distance_between_coords(self, lat1, lng1, lat2, lng2, use_google=True):
         if use_google:
             return self.get_distance_gmaps(lat1, lng1, lat2, lng2)
-        return self.get_distance_mapbox(lat1, lng1, lat2, lng2)
+        return self.get_distance_gmaps(lat1, lng1, lat2, lng2)
 
     def get_geo_using_gmaps(self, address):
       
         try:
           # count the api call
             print("API Call")
-          
-          
             geocode_result = gmaps.geocode(address)
             if geocode_result:
                 location = geocode_result[0].get("geometry", {}).get("location", {})
@@ -116,6 +117,8 @@ class BaseCreateDeliveryAPIView(APIView):
         url = f"https://api.mapbox.com/geocoding/v5/mapbox.places/{address}.json"
         params = {"access_token": mapbox_api_key, "limit": 1}
         response = requests.get(url, params=params)
+        
+        print("API Call mapbox")
 
         if response.status_code == 200:
             data = response.json()
@@ -227,6 +230,8 @@ class BaseCheckAddressAPIView(BaseCreateDeliveryAPIView):
         serializer = CheckAddressSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.data.copy()
+        
+        print(data.get("use_google"), 'use_google')
 
         drop_address = " ".join([
               data.get("drop_off_address", {}).get("street_address", ""),
@@ -331,13 +336,13 @@ class BaseAvailableOrdersApiView(APIView):
         earth_radius_km = 6371
 
         # Get the time 3 hours ago from now
-        three_hours_ago = timezone.now() - timedelta(hours=3)
+        # three_hours_ago = timezone.now() - timedelta(hours=3)
 
         # Find available deliveries within the radius and created within the last 3 hours
         available_orders = (
             Delivery.objects.filter(
                 status=Delivery.STATUS_TYPE.WAITING_FOR_DRIVER,
-                created_date__gte=three_hours_ago  # Only include orders created within the last 3 hours
+                # created_date__gte=three_hours_ago  # Only include orders created within the last 3 hours
             )
             .annotate(
                 calculated_distance=ExpressionWrapper(
@@ -436,6 +441,8 @@ class BasePickedUpOrdersApiViews(APIView):
         orders = Delivery.objects.filter(
             driver=request.user, status=Delivery.STATUS_TYPE.ORDER_PICKED_UP
         ).order_by("id")
+        
+        print(orders, 'orders--------------->')
         
         sr = DeliveryGETSerializer(orders, many=True)
         return Response(sr.data, status=status.HTTP_200_OK)
