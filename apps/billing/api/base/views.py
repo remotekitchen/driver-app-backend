@@ -336,13 +336,13 @@ class BaseAvailableOrdersApiView(APIView):
         earth_radius_km = 6371
 
         # Get the time 3 hours ago from now
-        three_hours_ago = timezone.now() - timedelta(hours=3)
+        # three_hours_ago = timezone.now() - timedelta(hours=3)
 
         # Find available deliveries within the radius and created within the last 3 hours
         available_orders = (
             Delivery.objects.filter(
                 status=Delivery.STATUS_TYPE.WAITING_FOR_DRIVER,
-                created_date__gte=three_hours_ago  # Only include orders created within the last 3 hours
+                # created_date__gte=three_hours_ago  # Only include orders created within the last 3 hours
             )
             .annotate(
                 calculated_distance=ExpressionWrapper(
@@ -441,6 +441,8 @@ class BasePickedUpOrdersApiViews(APIView):
         orders = Delivery.objects.filter(
             driver=request.user, status=Delivery.STATUS_TYPE.ORDER_PICKED_UP
         ).order_by("id")
+        
+        print(orders, 'orders--------------->')
         
         sr = DeliveryGETSerializer(orders, many=True)
         return Response(sr.data, status=status.HTTP_200_OK)

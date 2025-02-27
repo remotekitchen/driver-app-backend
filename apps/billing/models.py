@@ -22,6 +22,7 @@ class Delivery(BaseModel):
         DRIVER_ASSIGNED = "driver_assign", _("DRIVER_ASSIGNED")
         ORDER_PICKED_UP = "order_picked_up", _("ORDER_PICKED_UP")
         ON_THE_WAY = "on_the_way", _("ON_THE_WAY")
+        ARRIVED = "arrived", _("ARRIVED")
         DELIVERY_SUCCESS = "delivery_success", _("DELIVERY_SUCCESS")
         DELIVERY_FAILED = "delivery_failed", _("DELIVERY_FAILED")
         DRIVER_REJECTED = "driver_rejected", _("DRIVER_REJECTED")
