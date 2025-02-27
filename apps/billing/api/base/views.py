@@ -75,6 +75,7 @@ class BaseCreateDeliveryAPIView(APIView):
         instance.save()
 
         sr = DeliveryGETSerializer(instance)
+        print(Response(sr.data), 'Response(sr.data)--------------->')
         return Response(sr.data)
 
     def get_lat(self, address, use_google=True):
@@ -278,7 +279,7 @@ class BaseCheckAddressAPIView(BaseCreateDeliveryAPIView):
         data["fees"] = fees
         data["drop_off_latitude"] = drop_off_pointer.get("lat")
         data["drop_off_longitude"] = drop_off_pointer.get("lng")
-
+        print(data, 'data--------------->')
         return Response(data)
 
 
