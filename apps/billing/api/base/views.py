@@ -64,6 +64,14 @@ class BaseCreateDeliveryAPIView(APIView):
         # )
 
         fees = self.calculate_fees(distance)
+        
+        print(instance.pickup_last_time, 'instance.pickup_last_time--------------->')
+        
+        # Calculate average speed (in km/h)
+        average_speed_kmh = 12.5  # Midpoint of 10-15 km/h range
+
+        # Calculate estimated travel time in minutes
+        estimated_travel_time_minutes = (distance / average_speed_kmh) * 60
 
         instance.drop_off_latitude = drop_off_pointer.get("lat")
         instance.drop_off_longitude = drop_off_pointer.get("lng")
@@ -72,6 +80,8 @@ class BaseCreateDeliveryAPIView(APIView):
         # instance.driver = driver
         instance.assigned = False
         instance.status = Delivery.STATUS_TYPE.WAITING_FOR_DRIVER
+        instance.est_delivery_completed_time = instance.pickup_last_time + timedelta(minutes=estimated_travel_time_minutes)
+        instance.drop_off_last_time = instance.est_delivery_completed_time
         instance.save()
 
         sr = DeliveryGETSerializer(instance)
