@@ -81,8 +81,11 @@ class Delivery(BaseModel):
         max_length=20, verbose_name=_("drop off phone number")
     )
     drop_off_last_time = models.DateTimeField(verbose_name=_("drop off last time"))
-    delivery_completed_time = models.DateTimeField(
-        null=True, blank=True, verbose_name=_("delivery completed time")
+    est_delivery_completed_time = models.DateTimeField(
+        null=True, blank=True, verbose_name=_("estimated delivery completed time")
+    )
+    actual_delivery_completed_time = models.DateTimeField(
+        null=True, blank=True, verbose_name=_("actual delivery completed time")
     )
 
     status = models.CharField(
@@ -122,6 +125,7 @@ class Delivery(BaseModel):
     assigned = models.BooleanField(default=False)
     
     delivered_product_image = models.ImageField(upload_to="delivery_product_images", blank=True, null=True)
+    customer_info = models.JSONField(default=dict)
 
     def calculate_driver_earning(self):
         """

@@ -29,6 +29,7 @@ def client_status_updater(instance: Delivery):
         "client_id": instance.client_id,
         "uid": f"{instance.uid}",
         "status": instance.status,
+        "actual_delivery_completed_time": serialize_datetime(instance.actual_delivery_completed_time),
         "driver_info": [serializer.data['driver']],
     }
     res = requests.post(
