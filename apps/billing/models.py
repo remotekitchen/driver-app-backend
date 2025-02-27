@@ -113,7 +113,7 @@ class Delivery(BaseModel):
         choices=PAYMENT_METHOD_TYPE.choices,
         verbose_name=_("payment type"),
     )
-    use_google = models.BooleanField(default=False)
+    use_google = models.BooleanField(default=True)
 
     cancel_reason = models.CharField(max_length=255, blank=True, null=True)
 
