@@ -5,6 +5,7 @@ from rest_framework import serializers
 from apps.accounts.models import Profile, Vehicle
 from apps.billing.models import Delivery
 from apps.core.api.base.serializers import BaseAddressSerializer
+from django.utils import timezone
 
 User = get_user_model()
 
@@ -53,6 +54,18 @@ class BaseDeliverySerializer(WritableNestedModelSerializer):
             raise serializers.ValidationError("An image is required to update the status to DELIVERY_SUCCESS.")
         
         return attrs
+      
+    def update(self, instance, validated_data):
+        new_status = validated_data.get('status', instance.status)
+        
+        # Automatically set cash_collected to the order amount when status is DELIVERY_SUCCESS
+        if new_status == Delivery.STATUS_TYPE.DELIVERY_SUCCESS:
+            validated_data['cash_collected'] = instance.amount
+            validated_data['actual_delivery_completed_time'] = timezone.now()
+            
+        
+        
+        return super().update(instance, validated_data)
 
 class DeliveryCreateSerializer(BaseDeliverySerializer):
     pickup_address = BaseAddressSerializer()
