@@ -5,6 +5,8 @@ from django.utils.translation import gettext_lazy as _
 from apps.accounts.managers import ProfileManager, UserManager
 from apps.core.models import Address, BaseModel
 
+from datetime import time
+
 class User(AbstractUser):
     class RoleType(models.TextChoices):
         OWNER = "owner", _("Owner")
@@ -187,3 +189,68 @@ class Vehicle(BaseModel):
 
     def __str__(self):
         return f"{self.user.email} :: {self.id}"
+
+
+class DriverSession(models.Model):
+    class Weekdays(models.TextChoices):
+        MONDAY = "monday", _("Monday")
+        TUESDAY = "tuesday", _("Tuesday")
+        WEDNESDAY = "wednesday", _("Wednesday")
+        THURSDAY = "thursday", _("Thursday")
+        FRIDAY = "friday", _("Friday")
+        SATURDAY = "saturday", _("Saturday")
+        SUNDAY = "sunday", _("Sunday")
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        verbose_name=_("Driver"),
+        related_name="driver_sessions",
+        limit_choices_to={'role': User.RoleType.DRIVER},
+    )
+
+    weekday = models.CharField(
+        max_length=10,
+        choices=Weekdays.choices,
+        verbose_name=_("Weekday"),
+        help_text=_("The specific day of the week for this session"),
+        default=Weekdays.MONDAY
+    )
+
+    start_time = models.TimeField(verbose_name=_("Start time"))
+    end_time = models.TimeField(default=time(23, 59, 59), verbose_name=_("End time"))
+
+    is_recurring = models.BooleanField(default=False, verbose_name=_("Is recurring"))
+    is_active = models.BooleanField(default=True, verbose_name=_("Is active"))
+
+    offline_count = models.PositiveIntegerField(default=0, verbose_name=_("Offline Count"))
+    total_active_hours = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
+
+    last_active_time = models.DateTimeField(null=True, blank=True, verbose_name=_("Last Active Time"))
+    
+    created_at = models.DateTimeField(null=True, blank=True, default=None)
+
+    class Meta:
+        unique_together = ('user', 'weekday')
+
+    def __str__(self):
+        return f"{self.user.email} :: {self.weekday} ({self.start_time} - {self.end_time})"
+
+
+class DriverWorkHistory(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        verbose_name=_("Driver"),
+        related_name="work_history",
+        limit_choices_to={'role': User.RoleType.DRIVER},
+    )
+    total_deliveries = models.PositiveIntegerField(default=0)
+    total_earnings = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    offline_count = models.PositiveIntegerField(default=0)
+    on_time_deliveries = models.PositiveIntegerField(default=0)
+    total_active_hours = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
+    online_duration = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
+
+    def __str__(self):
+        return f"{self.user.email} :: Deliveries: {self.total_deliveries}, Earnings: {self.total_earnings}"

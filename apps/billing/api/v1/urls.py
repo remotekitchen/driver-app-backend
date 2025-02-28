@@ -9,6 +9,8 @@ from apps.billing.api.v1.views import (
     DriverAssignedOrdersApiView,
     OrderUpdateRetrieveApiView,
     PickedUpOrdersApiViews,
+    DriverOrderApiView,
+    AdminGetAllOrdersApiView
 )
 
 urlpatterns = [
@@ -20,4 +22,6 @@ urlpatterns = [
     path("assigned-deliveries/", DriverAssignedOrdersApiView.as_view()),
     path("order/<int:client_id>/", OrderUpdateRetrieveApiView.as_view()),
     path("picked-up-deliveries/", PickedUpOrdersApiViews.as_view()),
+    path("driver-order/", DriverOrderApiView.as_view()),
+    path("admin-orders/", AdminGetAllOrdersApiView.as_view())
 ]

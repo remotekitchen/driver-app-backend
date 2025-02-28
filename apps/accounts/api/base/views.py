@@ -26,8 +26,8 @@ from apps.accounts.api.base.serializers import (
     BaseUserSerializer,
     SocialLoginSerializer,
 )
-from apps.accounts.api.v1.serializers import UserSerializer, ProfileSerializer, VehicleSerializer
-from apps.accounts.models import User, Profile, Vehicle
+from apps.accounts.api.v1.serializers import UserSerializer, ProfileSerializer, VehicleSerializer, DriverSessionSerializer, DriverStatusSerializer
+from apps.accounts.models import User, Profile, Vehicle, DriverSession
 from django.shortcuts import get_object_or_404
 
 
@@ -274,4 +274,59 @@ class BaseVehicleAPIView(APIView):
         if error:
             return Response({'error': error}, status=status_code)
         return Response(data, status=status_code)
+      
+      
+class BaseDriverSessionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        serializer = DriverSessionSerializer(data=request.data)
+        if serializer.is_valid():
+            created_sessions = serializer.save()
+            return Response(
+                {"detail": f"Created {len(created_sessions)} sessions successfully."},
+                status=status.HTTP_201_CREATED
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+      
+    def patch(self, request, pk):
+        try:
+            session = DriverSession.objects.get(pk=pk)
+        except DriverSession.DoesNotExist:
+            return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        is_active = request.data.get('is_active')
+        if is_active is not None:
+            session.is_active = is_active
+            session.save()
+            return Response(
+                {"message": "Driver session status updated.", "is_active": session.is_active},
+                status=status.HTTP_200_OK
+            )
+        return Response({"error": "Invalid data."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+      
+class BaseDriverStatusView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+
+        if user.role != 'driver':
+            return Response({"detail": "Only drivers can access this endpoint."}, status=status.HTTP_403_FORBIDDEN)
+
+        session = DriverSession.objects.filter(user=user, is_active=True).first()
+
+        if not session:
+            return Response({"detail": "No active session found for the driver."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = DriverStatusSerializer(session, data=request.data)
+
+        if serializer.is_valid():
+            serializer.save()
+            status_message = "Driver is now online." if session.is_active else "Driver is now offline."
+            return Response({"detail": status_message}, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
       

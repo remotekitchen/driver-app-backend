@@ -23,6 +23,7 @@ from apps.billing.api.base.serializers import (
     DeliveryGETSerializer,
 )
 from apps.billing.models import Delivery, DeliveryFee
+from django.utils.dateparse import parse_date
 
 gmaps = googlemaps.Client(key=config("GOOGLE_MAP_KEY"))
 mapbox_api_key = config("MAPBOX_KEY")
@@ -457,3 +458,49 @@ class BasePickedUpOrdersApiViews(APIView):
         
         sr = DeliveryGETSerializer(orders, many=True)
         return Response(sr.data, status=status.HTTP_200_OK)
+      
+class BaseDriverOrderApiView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        orders = Delivery.objects.filter(driver=request.user).order_by("id")
+        sr = DeliveryGETSerializer(orders, many=True)
+        return Response(sr.data, status=status.HTTP_200_OK)
+      
+class BaseAdminGetAllOrdersApiView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def get(self, request):
+        orders = Delivery.objects.all().order_by("id")
+
+        # Get query parameters
+        date_query = request.query_params.get('date')
+        status_query = request.query_params.get('status')
+        earnings = request.query_params.get('earnings')
+        min_earnings = request.query_params.get('min_earnings')
+        max_earnings = request.query_params.get('max_earnings')
+
+        # Apply filters
+        if date_query:
+            parsed_date = parse_date(date_query)
+            if parsed_date:
+                # Use __date to filter only by the date part of the pickup_ready_at field
+                orders = orders.filter(pickup_ready_at__date=parsed_date)
+
+        if status_query:
+            orders = orders.filter(status__icontains=status_query)
+            
+        if earnings:
+            orders = orders.filter(driver_earning=earnings)
+
+        if min_earnings:
+            orders = orders.filter(driver_earning__gte=min_earnings)
+
+        if max_earnings:
+            orders = orders.filter(driver_earning__lte=max_earnings)
+
+        # Serialize and return the data
+        serializer = DeliveryGETSerializer(orders, many=True)
+        count = orders.count()
+        return Response({"count": count, "orders": serializer.data})
+        

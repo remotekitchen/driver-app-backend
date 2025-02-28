@@ -10,7 +10,9 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 
-from apps.accounts.models import User,Profile,Vehicle
+from apps.accounts.models import User,Profile,Vehicle, DriverSession, DriverWorkHistory
+
+from django.utils.timezone import now
 
 
 class SocialLoginSerializer(BaseSocialLoginSerializer):
@@ -134,3 +136,85 @@ class BaseVehicleSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['user']
         
+        
+class BaseDriverSessionSerializer(serializers.Serializer):
+    user_id = serializers.PrimaryKeyRelatedField(queryset=User.objects.filter(role=User.RoleType.DRIVER))
+    weekdays = serializers.ListField(
+        child=serializers.ChoiceField(choices=DriverSession.Weekdays.choices),
+        allow_empty=False,
+        help_text="Select one or more weekdays for this session"
+    )
+    start_time = serializers.TimeField(required=True)
+    end_time = serializers.TimeField(required=True)
+    is_recurring = serializers.BooleanField(default=False)
+    is_active = serializers.BooleanField(default=True)
+
+    def create(self, validated_data):
+        user = validated_data['user_id']
+        weekdays = validated_data['weekdays']
+        start_time = validated_data['start_time']
+        end_time = validated_data['end_time']
+        is_recurring = validated_data['is_recurring']
+        is_active = validated_data['is_active']
+
+        created_sessions = []
+        for weekday in weekdays:
+            session, created = DriverSession.objects.get_or_create(
+                user=user,
+                weekday=weekday,
+                defaults={
+                    'start_time': start_time,
+                    'end_time': end_time,
+                    'is_recurring': is_recurring,
+                    'is_active': is_active,
+                    'last_active_time': now() if is_active else None
+                }
+            )
+            if created:
+                created_sessions.append(session)
+
+        return created_sessions
+      
+class BaseDriverStatusSerializer(serializers.Serializer):
+    is_active = serializers.BooleanField(required=True)
+
+    def update(self, instance, validated_data):
+        is_active = validated_data.get('is_active', instance.is_active)
+
+        if instance.is_active != is_active:
+            instance.is_active = is_active
+
+            # Update last active time if going offline
+            if not is_active and instance.last_active_time:
+                from datetime import timedelta
+
+                # Calculate active duration
+                active_duration = now() - instance.last_active_time
+                active_hours = active_duration.total_seconds() / 3600
+
+                # Update total active hours and offline count
+                instance.total_active_hours += round(active_hours, 2)
+                instance.offline_count += 1
+
+                # Update work history
+                work_history, _ = DriverWorkHistory.objects.get_or_create(
+                    user=instance.user,
+                    date=now().date(),
+                    defaults={
+                        'start_time': instance.start_time,
+                        'end_time': instance.end_time,
+                        'status': 'partial'
+                    }
+                )
+
+                work_history.total_active_hours = instance.total_active_hours
+                work_history.offline_count = instance.offline_count
+                work_history.save()
+
+            # Set the last active time when going online
+            if is_active:
+                instance.last_active_time = now()
+
+            instance.save()
+
+        return instance
