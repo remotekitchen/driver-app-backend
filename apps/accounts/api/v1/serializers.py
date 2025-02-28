@@ -3,7 +3,9 @@ from apps.accounts.api.base.serializers import (
     BaseEmailPasswordLoginSerializer,
     BaseUserSerializer,
     BaseProfileSerializer,
-    BaseVehicleSerializer
+    BaseVehicleSerializer,
+    BaseDriverSessionSerializer,
+    BaseDriverStatusSerializer
 )
 
 
@@ -25,3 +27,9 @@ class ProfileSerializer(BaseProfileSerializer):
 
 class VehicleSerializer(BaseVehicleSerializer):
     pass
+
+class DriverSessionSerializer(BaseDriverSessionSerializer):
+    pass
+
+class DriverStatusSerializer(BaseDriverStatusSerializer):
+  pass

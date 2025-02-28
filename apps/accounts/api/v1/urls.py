@@ -11,7 +11,9 @@ from apps.accounts.api.v1.views import (
     UserRegistrationAPIView,
     UserRetrieveUpdateDestroyAPIView,
     ProfileAPIView,
-    VehicleAPIView
+    VehicleAPIView,
+    DriverSessionView,
+    DriverStatusView
 
 )
 
@@ -47,4 +49,9 @@ urlpatterns = [
         "user/vehicle/<int:pk>/",
         VehicleAPIView.as_view(), name='vehicle-detail-put-delete',
     ),
+       path(
+        "user/driver-session/",
+        DriverSessionView.as_view(), name='driver-session-list-create',
+    ),
+       path('user/active-status/<int:pk>/', DriverSessionView.as_view(), name='active-status')
 ]
