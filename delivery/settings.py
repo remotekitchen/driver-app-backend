@@ -231,7 +231,7 @@ CHANNEL_LAYERS = {
         'BACKEND': 'channels.layers.InMemoryChannelLayer',
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            'hosts': [('127.0.0.1', 6379)],  # Make sure Redis is accessible on this host and port
+            'hosts': [('localhost', 6379)],  # Make sure Redis is accessible on this host and port
         },
     },
 }
