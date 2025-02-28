@@ -6,7 +6,9 @@ from apps.billing.api.base.views import (
     BaseAcceptOrderApiView,
     BaseDriverAssignedOrdersApiView,
     BaseOrderUpdateRetrieveApiView,
-    BasePickedUpOrdersApiViews
+    BasePickedUpOrdersApiViews,
+    BaseDriverOrderApiView,
+    BaseAdminGetAllOrdersApiView
 )
 
 
@@ -34,4 +36,10 @@ class OrderUpdateRetrieveApiView(BaseOrderUpdateRetrieveApiView):
     pass
   
 class PickedUpOrdersApiViews(BasePickedUpOrdersApiViews):
+    pass
+  
+class DriverOrderApiView(BaseDriverOrderApiView):
+    pass
+  
+class AdminGetAllOrdersApiView(BaseAdminGetAllOrdersApiView):
     pass

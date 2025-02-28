@@ -137,6 +137,7 @@ class Delivery(BaseModel):
         peak_hour_bonus = 0  # Default to 0, can be updated dynamically
         incentives = 0  # Default to 0, can be updated dynamically
         additional_bonuses = 0  # Default to 0, can be updated dynamically
+        print(self.fees, 'fees----------->')
 
         # Calculate driver earnings
         self.driver_earning = base_fee + self.fees + peak_hour_bonus + incentives + additional_bonuses
