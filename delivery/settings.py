@@ -49,10 +49,12 @@ INSTALLED_APPS = [
     "corsheaders",
     "dj_rest_auth",
     "storages",
+    "channels",
     # own apps
     "apps.core",
     "apps.accounts",
     "apps.billing",
+    "apps.chat",
     'templates',
     'django_extensions'
 ]
@@ -220,3 +222,16 @@ ACCOUNT_AUTHENTICATION_METHOD = "email"
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 ACCOUNT_USERNAME_REQUIRED = False
 SITE_ID = 1
+
+ASGI_APPLICATION = 'delivery.asgi.application'
+
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [('127.0.0.1', 6379)],  # Make sure Redis is accessible on this host and port
+        },
+    },
+}
