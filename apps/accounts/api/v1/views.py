@@ -11,7 +11,8 @@ from apps.accounts.api.base.views import (
     BaseProfileAPIView,
     BaseVehicleAPIView,
     BaseDriverSessionView,
-    BaseDriverStatusView
+    BaseDriverStatusView,
+    BaseAdminGetAllActiveDriversView
 )
 from apps.accounts.api.v1.serializers import ChangePasswordSerializer, UserSerializer
 
@@ -60,4 +61,7 @@ class DriverSessionView(BaseDriverSessionView):
   pass
 
 class DriverStatusView(BaseDriverStatusView):
+    pass
+
+class AdminGetAllActiveDriversView(BaseAdminGetAllActiveDriversView):
     pass

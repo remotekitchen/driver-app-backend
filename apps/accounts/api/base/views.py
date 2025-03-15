@@ -14,7 +14,7 @@ from rest_framework.generics import (
     RetrieveUpdateDestroyAPIView,
     UpdateAPIView,
 )
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import generics
@@ -284,26 +284,44 @@ class BaseDriverSessionView(APIView):
         if serializer.is_valid():
             created_sessions = serializer.save()
             return Response(
-                {"detail": f"Created {len(created_sessions)} sessions successfully."},
+                {
+                    "detail": f"Created {len(created_sessions)} session(s) successfully.",
+                    "sessions": DriverSessionSerializer(created_sessions, many=True).data
+                },
                 status=status.HTTP_201_CREATED
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-      
-    def patch(self, request, pk):
-        try:
-            session = DriverSession.objects.get(pk=pk)
-        except DriverSession.DoesNotExist:
-            return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        is_active = request.data.get('is_active')
-        if is_active is not None:
-            session.is_active = is_active
-            session.save()
-            return Response(
-                {"message": "Driver session status updated.", "is_active": session.is_active},
-                status=status.HTTP_200_OK
-            )
-        return Response({"error": "Invalid data."}, status=status.HTTP_400_BAD_REQUEST)
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        sessions = DriverSession.objects.filter(user=user)
+        serializer = DriverSessionSerializer(sessions, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def patch(self, request, *args, **kwargs):
+        user = request.user
+
+        # Fetch the latest session for the user
+        session = DriverSession.objects.filter(user=user).order_by('-id').first()
+        
+        if not session:
+            return Response({"error": "No active session found for the user."}, status=status.HTTP_404_NOT_FOUND)
+
+        is_active = request.data.get("is_active")
+        if is_active is None:
+            return Response({"error": "is_active field is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if session.is_active == is_active:
+            message = "You are already active." if is_active else "You are already offline."
+            return Response({"message": message}, status=status.HTTP_200_OK)
+
+        session.is_active = is_active
+        session.save(update_fields=["is_active"])
+
+        return Response(
+            {"message": "Driver session status updated.", "is_active": session.is_active},
+            status=status.HTTP_200_OK
+        )
 
 
       
@@ -330,3 +348,11 @@ class BaseDriverStatusView(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
       
+      
+class BaseAdminGetAllActiveDriversView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    
+    def get(self, request, *args, **kwargs):
+        active_drivers = DriverSession.objects.filter(is_active=True)
+        serializer = DriverSessionSerializer(active_drivers, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
