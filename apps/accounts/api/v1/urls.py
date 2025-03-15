@@ -13,7 +13,8 @@ from apps.accounts.api.v1.views import (
     ProfileAPIView,
     VehicleAPIView,
     DriverSessionView,
-    DriverStatusView
+    DriverStatusView,
+    AdminGetAllActiveDriversView
 
 )
 
@@ -53,5 +54,6 @@ urlpatterns = [
         "user/driver-session/",
         DriverSessionView.as_view(), name='driver-session-list-create',
     ),
-       path('user/active-status/<int:pk>/', DriverSessionView.as_view(), name='active-status')
+       path('user/active-status/', DriverSessionView.as_view(), name='active-status'),
+       path('user/active-drivers/', AdminGetAllActiveDriversView.as_view(), name='active-drivers')
 ]
