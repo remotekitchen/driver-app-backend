@@ -6,6 +6,7 @@ from apps.accounts.managers import ProfileManager, UserManager
 from apps.core.models import Address, BaseModel
 
 from datetime import time
+from django.utils.timezone import now
 
 class User(AbstractUser):
     class RoleType(models.TextChoices):
@@ -191,6 +192,13 @@ class Vehicle(BaseModel):
         return f"{self.user.email} :: {self.id}"
 
 
+from django.db import models
+from django.utils.translation import gettext_lazy as _
+from django.contrib.auth import get_user_model
+from datetime import time
+
+User = get_user_model()
+
 class DriverSession(models.Model):
     class Weekdays(models.TextChoices):
         MONDAY = "monday", _("Monday")
@@ -200,6 +208,12 @@ class DriverSession(models.Model):
         FRIDAY = "friday", _("Friday")
         SATURDAY = "saturday", _("Saturday")
         SUNDAY = "sunday", _("Sunday")
+
+    class SessionSlots(models.TextChoices):
+        MORNING = "08:00-12:00", _("8 AM - 12 PM")
+        AFTERNOON = "12:00-16:00", _("12 PM - 4 PM")
+        EVENING = "16:00-20:00", _("4 PM - 8 PM")
+        NIGHT = "20:00-00:00", _("8 PM - 12 AM")
 
     user = models.ForeignKey(
         User,
@@ -217,24 +231,52 @@ class DriverSession(models.Model):
         default=Weekdays.MONDAY
     )
 
-    start_time = models.TimeField(verbose_name=_("Start time"))
-    end_time = models.TimeField(default=time(23, 59, 59), verbose_name=_("End time"))
+    session_slot = models.CharField(
+        max_length=15,
+        choices=SessionSlots.choices,
+        verbose_name=_("Session Slot"),
+        help_text=_("The time slot assigned to the session"),
+        default=SessionSlots.MORNING
+    )
 
-    is_recurring = models.BooleanField(default=False, verbose_name=_("Is recurring"))
-    is_active = models.BooleanField(default=True, verbose_name=_("Is active"))
-
-    offline_count = models.PositiveIntegerField(default=0, verbose_name=_("Offline Count"))
-    total_active_hours = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
-
-    last_active_time = models.DateTimeField(null=True, blank=True, verbose_name=_("Last Active Time"))
-    
-    created_at = models.DateTimeField(null=True, blank=True, default=None)
+    is_active = models.BooleanField(default=False, verbose_name=_("Is Active"))
+    created_at = models.DateTimeField(blank=True, default=now)
 
     class Meta:
-        unique_together = ('user', 'weekday')
+        unique_together = ('user', 'weekday', 'session_slot')
 
     def __str__(self):
-        return f"{self.user.email} :: {self.weekday} ({self.start_time} - {self.end_time})"
+        return f"{self.user.email} :: {self.weekday} ({self.session_slot})"
+      
+# class DriverSessionHistory(models.Model):
+#     user = models.ForeignKey(
+#         User,
+#         on_delete=models.CASCADE,
+#         verbose_name=_("Driver"),
+#         related_name="session_history",
+#         limit_choices_to={'role': User.RoleType.DRIVER},
+#     )
+#     session = models.ForeignKey(
+#         DriverSession,
+#         on_delete=models.CASCADE,
+#         verbose_name=_("Driver Session"),
+#         related_name="session_history",
+#     )
+#     date = models.DateField(verbose_name=_("Date"))
+#     weekday = models.CharField(
+#         max_length=10,
+#         choices=DriverSession.Weekdays.choices,
+#         verbose_name=_("Weekday"),
+#         help_text=_("The specific day of the week for this session"),
+#         default=DriverSession.Weekdays.MONDAY
+#     )
+
+#     class Meta:
+#         unique_together = ('user', 'session', 'date')
+
+#     def __str__(self):
+#         return f"{self.user.email} :: {self.date} ({self.weekday})"
+
 
 
 class DriverWorkHistory(models.Model):

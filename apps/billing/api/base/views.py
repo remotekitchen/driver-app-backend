@@ -321,56 +321,67 @@ class BaseAvailableOrdersApiView(APIView):
 
     def get(self, request):
         """
-        Returns available delivery orders near the given latitude and longitude.
-        Only includes orders created within the last 3 hours.
+        Returns available delivery orders.
+        - Admin users can see all available orders.
+        - Regular drivers see only orders within a 3 km radius of their location.
+        - Only includes orders created within the last 3 hours.
         """
-        driver_lat = request.GET.get("latitude")
-        driver_lng = request.GET.get("longitude")
+        # Get the time 3 hours ago
+        three_hours_ago = timezone.now() - timedelta(hours=3)
 
-        # Validate that latitude and longitude are provided
-        if not driver_lat or not driver_lng:
-            return Response(
-                {"message": "Latitude and longitude are required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            driver_lat = float(driver_lat)
-            driver_lng = float(driver_lng)
-        except ValueError:
-            return Response(
-                {"message": "Invalid latitude or longitude format."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Define the search radius (e.g., 5 km)
-        search_radius_km = 3
-        earth_radius_km = 6371
-
-        # Get the time 3 hours ago from now
-        # three_hours_ago = timezone.now() - timedelta(hours=3)
-
-        # Find available deliveries within the radius and created within the last 3 hours
-        available_orders = (
-            Delivery.objects.filter(
+        # Check if the user is an admin
+        if request.user.role == 'owner':
+            # Admin can see all available orders
+            available_orders = Delivery.objects.filter(
                 status=Delivery.STATUS_TYPE.WAITING_FOR_DRIVER,
-                # created_date__gte=three_hours_ago  # Only include orders created within the last 3 hours
-            )
-            .annotate(
-                calculated_distance=ExpressionWrapper(
-                    earth_radius_km
-                    * ACos(
-                        Cos(Radians(driver_lat))
-                        * Cos(Radians(F("pickup_latitude")))
-                        * Cos(Radians(F("pickup_longitude")) - Radians(driver_lng))
-                        + Sin(Radians(driver_lat)) * Sin(Radians(F("pickup_latitude")))
-                    ),
-                    output_field=FloatField(),
+                created_date__gte=three_hours_ago
+            ).order_by("-created_date")  # Show recent orders first
+
+        else:
+            # Regular drivers must provide latitude and longitude
+            driver_lat = request.GET.get("latitude")
+            driver_lng = request.GET.get("longitude")
+
+            if not driver_lat or not driver_lng:
+                return Response(
+                    {"message": "Latitude and longitude are required."},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
+
+            try:
+                driver_lat = float(driver_lat)
+                driver_lng = float(driver_lng)
+            except ValueError:
+                return Response(
+                    {"message": "Invalid latitude or longitude format."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Define the search radius (e.g., 3 km)
+            search_radius_km = 3
+            earth_radius_km = 6371
+
+            # Find available deliveries within the radius and created within the last 3 hours
+            available_orders = (
+                Delivery.objects.filter(
+                    status=Delivery.STATUS_TYPE.WAITING_FOR_DRIVER,
+                    created_date__gte=three_hours_ago
+                )
+                .annotate(
+                    calculated_distance=ExpressionWrapper(
+                        earth_radius_km
+                        * ACos(
+                            Cos(Radians(driver_lat))
+                            * Cos(Radians(F("pickup_latitude")))
+                            * Cos(Radians(F("pickup_longitude")) - Radians(driver_lng))
+                            + Sin(Radians(driver_lat)) * Sin(Radians(F("pickup_latitude")))
+                        ),
+                        output_field=FloatField(),
+                    )
+                )
+                .filter(calculated_distance__lte=search_radius_km)
+                .order_by("calculated_distance")
             )
-            .filter(calculated_distance__lte=search_radius_km)  # Use new annotation name
-            .order_by("calculated_distance")
-        )
 
         serializer = DeliveryGETSerializer(available_orders, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)

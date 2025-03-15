@@ -137,43 +137,46 @@ class BaseVehicleSerializer(serializers.ModelSerializer):
         read_only_fields = ['user']
         
         
-class BaseDriverSessionSerializer(serializers.Serializer):
-    user_id = serializers.PrimaryKeyRelatedField(queryset=User.objects.filter(role=User.RoleType.DRIVER))
-    weekdays = serializers.ListField(
-        child=serializers.ChoiceField(choices=DriverSession.Weekdays.choices),
-        allow_empty=False,
-        help_text="Select one or more weekdays for this session"
+class BaseDriverSessionSerializer(serializers.ModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(role=User.RoleType.DRIVER),
+        help_text="Select the driver for this session"
     )
-    start_time = serializers.TimeField(required=True)
-    end_time = serializers.TimeField(required=True)
-    is_recurring = serializers.BooleanField(default=False)
-    is_active = serializers.BooleanField(default=True)
+    weekday = serializers.ChoiceField(choices=DriverSession.Weekdays.choices)
+    session_slot = serializers.ChoiceField(choices=DriverSession.SessionSlots.choices)
+    created_at = serializers.DateTimeField(read_only=True)
+
+    class Meta:
+        model = DriverSession
+        fields = [
+            "user",
+            "weekday",
+            "session_slot",
+            "is_active",
+            "created_at",
+        ]
 
     def create(self, validated_data):
-        user = validated_data['user_id']
-        weekdays = validated_data['weekdays']
-        start_time = validated_data['start_time']
-        end_time = validated_data['end_time']
-        is_recurring = validated_data['is_recurring']
-        is_active = validated_data['is_active']
+        """
+        Ensures a session is created only if it doesn't exist.
+        """
+        session, created = DriverSession.objects.get_or_create(
+            user=validated_data["user"],
+            weekday=validated_data["weekday"],
+            session_slot=validated_data["session_slot"],
+            defaults={
+                "is_active": validated_data.get("is_active", True),
+                "created_at": now()
+            }
+        )
 
-        created_sessions = []
-        for weekday in weekdays:
-            session, created = DriverSession.objects.get_or_create(
-                user=user,
-                weekday=weekday,
-                defaults={
-                    'start_time': start_time,
-                    'end_time': end_time,
-                    'is_recurring': is_recurring,
-                    'is_active': is_active,
-                    'last_active_time': now() if is_active else None
-                }
+        if not created:
+            raise serializers.ValidationError(
+                {"detail": "A session for this weekday and time slot already exists."}
             )
-            if created:
-                created_sessions.append(session)
 
-        return created_sessions
+        return session
+
       
 class BaseDriverStatusSerializer(serializers.Serializer):
     is_active = serializers.BooleanField(required=True)
@@ -197,19 +200,19 @@ class BaseDriverStatusSerializer(serializers.Serializer):
                 instance.offline_count += 1
 
                 # Update work history
-                work_history, _ = DriverWorkHistory.objects.get_or_create(
-                    user=instance.user,
-                    date=now().date(),
-                    defaults={
-                        'start_time': instance.start_time,
-                        'end_time': instance.end_time,
-                        'status': 'partial'
-                    }
-                )
+                # work_history, _ = DriverWorkHistory.objects.get_or_create(
+                #     user=instance.user,
+                #     date=now().date(),
+                #     defaults={
+                #         'start_time': instance.start_time,
+                #         'end_time': instance.end_time,
+                #         'status': 'partial'
+                #     }
+                # )
 
-                work_history.total_active_hours = instance.total_active_hours
-                work_history.offline_count = instance.offline_count
-                work_history.save()
+                # work_history.total_active_hours = instance.total_active_hours
+                # work_history.offline_count = instance.offline_count
+                # work_history.save()
 
             # Set the last active time when going online
             if is_active:
