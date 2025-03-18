@@ -28,21 +28,15 @@ def track_status_change(sender, instance, **kwargs):
 
 @receiver(post_save, sender=Delivery)
 def handle_delivery_update(sender, instance: Delivery, created, **kwargs):
-    """
-    1. If a new delivery is created, trigger client_status_updater.
-    2. If delivery status changes, send a push notification.
-    """
     if created:
-        # If it's a new delivery, call client_status_updater
         client_status_updater(instance)
 
     if not created and getattr(instance, "_status_changed", False):
-        # Status has changed, so send a push notification
-        event_type = instance.status.lower()  # Convert status to lowercase
-        restaurant_name = instance.pickup_address.name  # Assuming `pickup_address` has `name`
+        event_type = instance.status.lower()  
+        restaurant_name = instance.pickup_address.name  
         title, body = get_dynamic_message(instance, event_type, "restaurant_name")
 
         # Send push notification
-        send_push_notification(instance.client_id, title, body)
+        send_push_notification(["eARqwgn909Od2l537qeQM6:APA91bF5VXcZO1UqApaIu2eV5iboOPSlnqdU61svFL4zWtqrMAf4GtDwpK15NWHBaImRFcTKnMITrQsbxtagsT35M2VBr7S6uJCUqj6Me1sTuP_0ho2pusA"], title, body)
 
         print(f"🔔 Notification Sent: {title} - {body}")  # For debugging
