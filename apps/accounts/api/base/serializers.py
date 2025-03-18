@@ -149,6 +149,7 @@ class BaseDriverSessionSerializer(serializers.ModelSerializer):
     class Meta:
         model = DriverSession
         fields = [
+            "id",
             "user",
             "weekday",
             "session_slot",
