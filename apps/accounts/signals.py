@@ -9,6 +9,8 @@ from django.contrib.auth import get_user_model
 from django.dispatch import receiver
 from django.db.models import F
 from decimal import Decimal
+from apps.billing.models import Delivery
+from .utils import update_driver_work_history  # Import the function
 
 User = get_user_model()
 
@@ -22,3 +24,9 @@ def link_to_local_user(sender, request, sociallogin, **kwargs):
             perform_login(request, users[0], email_verification="optional")
 
 
+
+@receiver(post_save, sender=Delivery)
+def order_delivered_update_history(sender, instance, **kwargs):
+    """ Updates driver work history when an order is marked as delivered """
+    if instance.status == Delivery.STATUS_TYPE.DELIVERY_SUCCESS:
+        update_driver_work_history(instance.driver, instance)
