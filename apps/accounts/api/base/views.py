@@ -27,8 +27,12 @@ from apps.accounts.api.base.serializers import (
     SocialLoginSerializer,
 )
 from apps.accounts.api.v1.serializers import UserSerializer, ProfileSerializer, VehicleSerializer, DriverSessionSerializer, DriverStatusSerializer
-from apps.accounts.models import User, Profile, Vehicle, DriverSession
+from apps.accounts.models import User, Profile, Vehicle, DriverSession, DriverWorkHistory
 from django.shortcuts import get_object_or_404
+from datetime import datetime, timedelta
+from django.db.models import Sum, Q, F
+from django.db.models.functions import TruncDate
+import pytz
 
 
 class AbstractBaseLoginView(GenericAPIView):
@@ -300,12 +304,15 @@ class BaseDriverSessionView(APIView):
 
     def patch(self, request, *args, **kwargs):
         user = request.user
+        session_id = request.data.get("session_id")  # Expecting session_id in request body
 
-        # Fetch the latest session for the user
-        session = DriverSession.objects.filter(user=user).order_by('-id').first()
-        
-        if not session:
-            return Response({"error": "No active session found for the user."}, status=status.HTTP_404_NOT_FOUND)
+        if not session_id:
+            return Response({"error": "session_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            session = DriverSession.objects.get(id=session_id, user=user)
+        except DriverSession.DoesNotExist:
+            return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
 
         is_active = request.data.get("is_active")
         if is_active is None:
@@ -315,6 +322,7 @@ class BaseDriverSessionView(APIView):
             message = "You are already active." if is_active else "You are already offline."
             return Response({"message": message}, status=status.HTTP_200_OK)
 
+        # Update the session's active status
         session.is_active = is_active
         session.save(update_fields=["is_active"])
 
@@ -356,3 +364,66 @@ class BaseAdminGetAllActiveDriversView(APIView):
         active_drivers = DriverSession.objects.filter(is_active=True)
         serializer = DriverSessionSerializer(active_drivers, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+class BaseDriverWorkHistorySummaryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        user = request.user  # Get the logged-in driver
+        driver_joining_date = user.date_joined.date()
+
+        # Get custom date filters from query params
+        start_date = request.query_params.get("start_date")
+        end_date = request.query_params.get("end_date")
+
+        # Validate date format
+        try:
+            if start_date:
+                start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+            if end_date:
+                end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+        except ValueError:
+            return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=400)
+
+        # Apply date filtering on actual delivery completed date
+        date_filter = Q(user__driver__actual_delivery_completed_time__isnull=False)
+        if start_date:
+            date_filter &= Q(user__driver__actual_delivery_completed_time__date__gte=start_date)
+        if end_date:
+            date_filter &= Q(user__driver__actual_delivery_completed_time__date__lte=end_date)
+
+        # Fetch daily summary (only include deliveries within the given date range)
+        daily_summary = (
+            DriverWorkHistory.objects.filter(user=user)
+            .filter(date_filter)
+            .annotate(day=TruncDate("user__driver__actual_delivery_completed_time"))  # Use delivery completion date
+            .values("day")  # Group by day
+            .annotate(
+                total_deliveries=Sum("total_deliveries"),
+                total_earnings=Sum("total_earnings"),
+                offline_count=Sum("offline_count"),
+                on_time_deliveries=Sum("on_time_deliveries"),
+                total_active_hours=Sum("total_active_hours"),
+                online_duration=Sum("online_duration"),
+            )
+            .order_by("-day")
+        )
+
+        # Convert queryset to a list and process timestamps
+        daily_summary_list = []
+        for entry in daily_summary:
+            print(entry, 'entry----------->')  # Debugging output
+
+            day_date = entry["day"]
+            if day_date:  # Ensure it's not None
+                entry["weekday"] = day_date.strftime("%A")  # Extract weekday
+                entry["day"] = str(day_date)  # Convert to string for API response
+                # Calculate week number since joining date
+                weeks_since_joining = (day_date - driver_joining_date).days // 7 + 1
+                entry["week_number"] = weeks_since_joining  # Add calculated week number
+                daily_summary_list.append(entry)
+
+        return Response(
+            {"daily_summary": daily_summary_list},
+            status=200,
+        )
