@@ -300,12 +300,15 @@ class BaseDriverSessionView(APIView):
 
     def patch(self, request, *args, **kwargs):
         user = request.user
+        session_id = request.data.get("session_id")  # Expecting session_id in request body
 
-        # Fetch the latest session for the user
-        session = DriverSession.objects.filter(user=user).order_by('-id').first()
-        
-        if not session:
-            return Response({"error": "No active session found for the user."}, status=status.HTTP_404_NOT_FOUND)
+        if not session_id:
+            return Response({"error": "session_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            session = DriverSession.objects.get(id=session_id, user=user)
+        except DriverSession.DoesNotExist:
+            return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
 
         is_active = request.data.get("is_active")
         if is_active is None:
@@ -315,6 +318,7 @@ class BaseDriverSessionView(APIView):
             message = "You are already active." if is_active else "You are already offline."
             return Response({"message": message}, status=status.HTTP_200_OK)
 
+        # Update the session's active status
         session.is_active = is_active
         session.save(update_fields=["is_active"])
 
