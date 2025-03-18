@@ -1,8 +1,9 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 
 from apps.billing.models import Delivery
 from apps.billing.utils.client_status_update import client_status_updater
-
+from django.dispatch import receiver
+from apps.firebase.utils.fcm_helper import get_dynamic_message, send_push_notification
 
 def delivery_instance(sender, instance: Delivery, created, **kwargs):
     if not instance.status in [
@@ -14,3 +15,34 @@ def delivery_instance(sender, instance: Delivery, created, **kwargs):
 
 
 post_save.connect(delivery_instance, sender=Delivery)
+
+
+
+@receiver(pre_save, sender=Delivery)
+def track_status_change(sender, instance, **kwargs):
+    """Track if the status of a delivery is being updated."""
+    if instance.pk:  # Ensure it's an update, not a new object
+        previous_instance = Delivery.objects.get(pk=instance.pk)
+        if previous_instance.status != instance.status:
+            instance._status_changed = True  # Mark the status as changed
+
+@receiver(post_save, sender=Delivery)
+def handle_delivery_update(sender, instance: Delivery, created, **kwargs):
+    """
+    1. If a new delivery is created, trigger client_status_updater.
+    2. If delivery status changes, send a push notification.
+    """
+    if created:
+        # If it's a new delivery, call client_status_updater
+        client_status_updater(instance)
+
+    if not created and getattr(instance, "_status_changed", False):
+        # Status has changed, so send a push notification
+        event_type = instance.status.lower()  # Convert status to lowercase
+        restaurant_name = instance.pickup_address.name  # Assuming `pickup_address` has `name`
+        title, body = get_dynamic_message(instance, event_type, "restaurant_name")
+
+        # Send push notification
+        send_push_notification(instance.client_id, title, body)
+
+        print(f"🔔 Notification Sent: {title} - {body}")  # For debugging

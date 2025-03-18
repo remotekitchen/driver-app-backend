@@ -142,83 +142,56 @@ def remove_invalid_tokens_from_database(invalid_tokens):
 
 
 
-
 def get_dynamic_message(order, event_type, restaurant_name):
     """
-    Generate a dynamic title and message body for a given event type.
+    Generate a dynamic title and message body for a given event type with deeper context.
     """
-    
-    print("im get daynamic message", order, event_type)
-    if event_type == "pending":
-        title = f"#{order.id} Order Placed! 🎉"
-        body = f"We’ve got your order! Just waiting for {restaurant_name} to give the thumbs up. 🤞"
-    
-    elif event_type == "order_accepted":
-        title = f"#{order.id} ✅ Order Accepted – Chef’s on It!"
-        body = f"{restaurant_name} has accepted your order. The kitchen is heating up! 🔥"
-    
-    elif event_type == "order_scheduled_accepted":
-        title = f"Order #{order.id} Scheduled"
-        body = f"Your order has been scheduled and accepted. Your delivery is on the way!"
-    
-    elif event_type == "order_not_ready_for_pickup":
-        title = f"Order #{order.id} Not Ready"
-        body = f"Your order is not ready for pickup yet. We'll update you when it's ready."
-    
-    elif event_type == "order_waiting_for_driver":
-        title = f"Order #{order.id} Waiting for Driver"
-        body = f"Your order is waiting for a driver to pick it up."
-    
-    elif event_type == "order_driver_assigned":
-        title = f"Driver Assigned to Order #{order.id}"
-        body = f"A driver has been assigned for your order. They'll be with you soon!"
-    
-    elif event_type == "order_ready_for_pickup":
-        title = f"Order #{order.id} Ready for Pickup"
-        body = f"Your order is ready for pickup!"
-    
-    elif event_type == "order_rider_confirmed":
-        title = f"Rider Confirmed for Order #{order.id}"
-        body = f"Your rider has confirmed pickup for your order. They're on their way."
-    
-    elif event_type == "order_rider_confirmed_pickup_arrival":
-        title = f"🚗 Driver On the Way!"
-        body = f"The Restaurant has served dinner, and the rider is rushing to the merchant."
-    
-    elif event_type == "order_rider_on_the_way":
-        title = f"Rider On the Way for Order #{order.id}"
-        body = f"Your rider is on the way with your order. Stay tuned!"
-    
-    elif event_type == "order_rider_picked_up":
-        title = f"Rider Picked Up Order #{order.id}"
-        body = f"Your order has been picked up by the rider and is on its way to you."
-    
-    elif event_type == "order_rider_confirmed_dropoff_arrival":
-        title = f"⏳ Almost There – Get Ready!"
-        body = f"Your food is just minutes away! Grab your napkins and get ready. 😋"
-    
-    elif event_type == "order_completed":
-        title = f"Delivered! 🍕🎉"
-        body = f"Bon appétit! Your order has arrived. Time to dig in! 🍽️"
-    
-    elif event_type == "order_cancelled":
-        title = f"Order Canceled 😢"
-        body = f"Your order has been canceled. Need help? Contact support or place a new order."
-    
-    elif event_type == "order_rejected":
-        title = f"Order #{order.id} Rejected"
-        body = f"Your order has been rejected. Please try placing it again later."
-    
-    elif event_type == "order_missing":
-        title = f"Order #{order.id} Missing"
-        body = f"Your order is missing. We're looking into this and will update you soon."
-    
-    elif event_type == "order_na":
-        title = f"Order #{order.id} Status Unavailable"
-        body = f"Your order status is currently unavailable. Please check back later."
+
+    print("🔥 Generating dynamic message for:", order, event_type)
+
+    if event_type == "created":
+        title = f"🆕 New Order #{order.id} Received!"
+        body = f"Great news! A fresh order has been placed at {restaurant_name}. The team is preparing it now! 🍳👨‍🍳"
+
+    elif event_type == "waiting_for_driver":
+        title = f"🚗 Looking for a Driver for Order #{order.id}"
+        body = f"We're finding the best driver to deliver your order from {restaurant_name}. Hang tight! ⏳"
+
+    elif event_type == "driver_assign":
+        title = f"🚀 Driver Assigned for Order #{order.id}!"
+        body = f"A driver has been assigned and is heading to {restaurant_name} for pickup. 🏍️💨"
+
+    elif event_type == "order_picked_up":
+        title = f"📦 Order #{order.id} Picked Up!"
+        body = f"The driver has picked up your order from {restaurant_name}! Expect a delicious arrival soon. 🍔"
+
+    elif event_type == "on_the_way":
+        title = f"🛣️ Order #{order.id} is On the Way!"
+        body = f"Your order is on its way to you! Keep an eye out for your delivery. 🚗💨"
+
+    elif event_type == "arrived":
+        title = f"📍 Order #{order.id} - Driver Has Arrived!"
+        body = f"Your delivery has arrived at your location! Please meet the driver to receive your order. 🍽️"
+
+    elif event_type == "delivery_success":
+        title = f"✅ Order #{order.id} Delivered Successfully!"
+        body = f"Enjoy your meal! Your order has been delivered fresh and hot. Bon appétit! 🍕😋"
+
+    elif event_type == "delivery_failed":
+        title = f"❌ Order #{order.id} Delivery Failed!"
+        body = f"Oops! There was an issue with your delivery. Please contact support for assistance. 📞"
+
+    elif event_type == "driver_rejected":
+        title = f"⚠️ Order #{order.id} - Driver Unavailable"
+        body = f"A driver was unable to pick up your order. We’re trying to assign a new one ASAP! 🔄"
+
+    elif event_type == "canceled":
+        title = f"🚫 Order #{order.id} Canceled"
+        body = f"Your order has been canceled. If you need assistance, feel free to reach out to our support team. 🛠️"
 
     else:
-        title = "Order Notification"
-        body = "No specific message available."
+        title = f"ℹ️ Update on Order #{order.id}"
+        body = f"Your order status has changed. Please check the app for the latest updates. 📲"
 
     return title, body
+
