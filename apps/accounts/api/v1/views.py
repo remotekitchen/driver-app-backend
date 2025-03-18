@@ -12,7 +12,8 @@ from apps.accounts.api.base.views import (
     BaseVehicleAPIView,
     BaseDriverSessionView,
     BaseDriverStatusView,
-    BaseAdminGetAllActiveDriversView
+    BaseAdminGetAllActiveDriversView,
+    BaseDriverWorkHistorySummaryView
 )
 from apps.accounts.api.v1.serializers import ChangePasswordSerializer, UserSerializer
 
@@ -64,4 +65,7 @@ class DriverStatusView(BaseDriverStatusView):
     pass
 
 class AdminGetAllActiveDriversView(BaseAdminGetAllActiveDriversView):
+    pass
+  
+class DriverWorkHistorySummaryView(BaseDriverWorkHistorySummaryView):
     pass
