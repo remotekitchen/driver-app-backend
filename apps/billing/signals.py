@@ -54,8 +54,11 @@ def handle_delivery_update(sender, instance: Delivery, created, **kwargs):
             return
 
         title, body = get_dynamic_message(instance, event_type, restaurant_name)
-
+        data={
+            "campaign_title": title,
+            "campaign_message": body,
+        }
         # Send push notification
-        send_push_notification(tokens, title, body)
+        send_push_notification(tokens, data)
 
         print(f"🔔 Notification Sent: {title} - {body}")  # For debugging

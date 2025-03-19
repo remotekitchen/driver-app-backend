@@ -65,8 +65,8 @@ class BaseSendNotificationView(APIView):
 
         try:
             data={
-                  "campaign_title": title,
-                  "campaign_message": body,
+            "campaign_title": title,
+            "campaign_message": body,
             }
             response = send_push_notification(tokens, data)
             return Response(response)
