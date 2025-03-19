@@ -5,6 +5,11 @@ from apps.billing.utils.client_status_update import client_status_updater
 from django.dispatch import receiver
 from apps.firebase.utils.fcm_helper import get_dynamic_message, send_push_notification
 from apps.firebase.models import TokenFCM
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+
 def delivery_instance(sender, instance: Delivery, created, **kwargs):
     if not instance.status in [
         Delivery.STATUS_TYPE.CREATED,
@@ -32,16 +37,28 @@ def handle_delivery_update(sender, instance: Delivery, created, **kwargs):
         client_status_updater(instance)
 
     if not created and getattr(instance, "_status_changed", False):
-        event_type = instance.status.lower() 
-        user = instance.user 
+        event_type = instance.status.lower()
+        
+        # Use driver or extract user from customer_info
+        user = instance.driver or None  # If driver exists, use it
+        if not user and instance.customer_info.get("user_id"):  # Try to get user from customer_info
+            user = User.objects.filter(id=instance.customer_info["user_id"]).first()
+
+        if not user:
+            return  # No user found, no need to proceed
+
         tokens = list(TokenFCM.objects.filter(user=user).values_list("token", flat=True))
-        restaurant_name = instance.pickup_address.name  
+        # restaurant_name = instance.pickup_address.name  
 
         if not tokens:
             return
-        title, body = get_dynamic_message(instance, event_type, restaurant_name)
 
+        title, body = get_dynamic_message(instance, event_type, "restaurant_name")
+        data={
+            "campaign_title": title,
+            "campaign_message": body,
+        }
         # Send push notification
-        send_push_notification(tokens, title, body)
+        send_push_notification(tokens, data)
 
         print(f"🔔 Notification Sent: {title} - {body}")  # For debugging
