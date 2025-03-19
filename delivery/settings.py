@@ -9,8 +9,9 @@ https://docs.djangoproject.com/en/5.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.0/ref/settings/
 """
-
+import os.path
 from pathlib import Path
+from firebase_admin import initialize_app, credentials, get_app
 
 from decouple import config
 
@@ -22,6 +23,24 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
+SERVICE_ACCOUNT_KEY_PATH = os.path.join(BASE_DIR, 'delivery', 'serviceAccountKey.json')
+
+cred = credentials.Certificate(SERVICE_ACCOUNT_KEY_PATH)
+
+
+try:
+    FIREBASE_APP = get_app() 
+except ValueError:
+    FIREBASE_APP = initialize_app(cred) 
+
+
+FCM_DJANGO_SETTINGS = {
+    "DEFAULT_FIREBASE_APP": FIREBASE_APP,
+    "ONE_DEVICE_PER_USER": False,  # Allow multiple devices per user
+    "DELETE_INACTIVE_DEVICES": True,  # Auto-delete devices that fail notifications
+    # Other settings...
+}
+
 SECRET_KEY = config("SECRET_KEY")
 DEBUG = config("DEBUG", default=False, cast=bool)
 
@@ -56,7 +75,8 @@ INSTALLED_APPS = [
     "apps.billing",
     "apps.chat",
     'templates',
-    'django_extensions'
+    'django_extensions',
+    'apps.firebase'
 ]
 
 AUTH_USER_MODEL = "accounts.User"
