@@ -28,6 +28,8 @@ from apps.accounts.api.base.serializers import (
 )
 from apps.accounts.api.v1.serializers import UserSerializer, ProfileSerializer, VehicleSerializer, DriverSessionSerializer, DriverStatusSerializer
 from apps.accounts.models import User, Profile, Vehicle, DriverSession, DriverWorkHistory
+from apps.billing.models import Delivery
+from apps.billing.api.base.serializers import DeliveryGETSerializer
 from django.shortcuts import get_object_or_404
 from datetime import datetime, timedelta
 from django.db.models import Sum, Q, F
@@ -369,8 +371,9 @@ class BaseDriverWorkHistorySummaryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        user = request.user  # Get the logged-in driver
+        user = request.user
         driver_joining_date = user.date_joined.date()
+        
 
         # Get custom date filters from query params
         start_date = request.query_params.get("start_date")
@@ -422,8 +425,31 @@ class BaseDriverWorkHistorySummaryView(APIView):
                 weeks_since_joining = (day_date - driver_joining_date).days // 7 + 1
                 entry["week_number"] = weeks_since_joining  # Add calculated week number
                 daily_summary_list.append(entry)
+                
+        
+                
+        completed_deliveries = Delivery.objects.filter(
+            status="delivery_success",
+            driver=user
+        )
+
+        cancelled_deliveries = Delivery.objects.filter(
+            status="delivery_cancelled",
+            driver=user
+        )
+   
+
+        # Serialize deliveries
+        completed_deliveries_data = DeliveryGETSerializer(completed_deliveries, many=True).data
+        cancelled_deliveries_data = DeliveryGETSerializer(cancelled_deliveries, many=True).data
 
         return Response(
-            {"daily_summary": daily_summary_list},
+            {
+                "daily_summary": daily_summary_list,
+                "deliveries": {
+                    "completed": completed_deliveries_data,
+                    "cancelled": cancelled_deliveries_data
+                },
+            },
             status=200,
         )
