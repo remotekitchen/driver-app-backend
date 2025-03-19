@@ -48,12 +48,12 @@ def handle_delivery_update(sender, instance: Delivery, created, **kwargs):
             return  # No user found, no need to proceed
 
         tokens = list(TokenFCM.objects.filter(user=user).values_list("token", flat=True))
-        restaurant_name = instance.pickup_address.name  
+        # restaurant_name = instance.pickup_address.name  
 
         if not tokens:
             return
 
-        title, body = get_dynamic_message(instance, event_type, restaurant_name)
+        title, body = get_dynamic_message(instance, event_type, "restaurant_name")
         data={
             "campaign_title": title,
             "campaign_message": body,
