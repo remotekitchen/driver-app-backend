@@ -5,7 +5,7 @@ from apps.firebase.models import TokenFCM
 
 
 
-def send_push_notification(tokens, title, body):
+def send_push_notification(tokens, data):
 
     print(f"Sending to {len(tokens)} devices")
     
@@ -19,8 +19,8 @@ def send_push_notification(tokens, title, body):
     for token in tokens:
         message = messaging.Message(
             notification=messaging.Notification(
-                title=title,
-                body=body,
+                title=data["campaign_title"],
+                body=data["campaign_message"],
                 image="imagurl.png",  
             ),
             android=messaging.AndroidConfig(
