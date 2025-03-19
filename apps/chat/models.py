@@ -1,26 +1,11 @@
 from django.db import models
-from django.utils.translation import gettext_lazy as _
-from django.contrib.auth import get_user_model
-from apps.billing.models import Delivery
-
-User = get_user_model()
+from django.utils import timezone
 
 class ChatMessage(models.Model):
-    delivery = models.ForeignKey(
-        Delivery, on_delete=models.CASCADE, related_name="chat_messages"
-    )
-    sender = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="sent_messages"
-    )
-    receiver = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="received_messages"
-    )
-    message = models.TextField(verbose_name=_("Message"))
-    timestamp = models.DateTimeField(auto_now_add=True, verbose_name=_("Timestamp"))
-    is_read = models.BooleanField(default=False, verbose_name=_("Is Read"))
+    order_id = models.CharField(max_length=255, blank=True, null=True)
+    sender_id = models.IntegerField(blank=True, null=True)
+    message = models.TextField()
+    timestamp = models.DateTimeField(default=timezone.now, blank=True, null=True)
 
     def __str__(self):
-        return f"Chat ({self.delivery.id}) - {self.sender} to {self.receiver}"
-
-    class Meta:
-        ordering = ["timestamp"]
+        return f"Order {self.order_id} - {self.sender_id}: {self.message}"
