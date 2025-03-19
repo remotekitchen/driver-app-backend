@@ -35,6 +35,8 @@ from datetime import datetime, timedelta
 from django.db.models import Sum, Q, F
 from django.db.models.functions import TruncDate
 import pytz
+import json
+from django.db.models import Count, Sum, Case, When, IntegerField
 
 
 class AbstractBaseLoginView(GenericAPIView):
@@ -388,26 +390,32 @@ class BaseDriverWorkHistorySummaryView(APIView):
         except ValueError:
             return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=400)
 
-        # Apply date filtering on actual delivery completed date
-        date_filter = Q(user__driver__actual_delivery_completed_time__isnull=False)
-        if start_date:
-            date_filter &= Q(user__driver__actual_delivery_completed_time__date__gte=start_date)
-        if end_date:
-            date_filter &= Q(user__driver__actual_delivery_completed_time__date__lte=end_date)
+        date_filter = Q(status=Delivery.STATUS_TYPE.DELIVERY_SUCCESS)
 
-        # Fetch daily summary (only include deliveries within the given date range)
+        if start_date:
+            date_filter &= Q(actual_delivery_completed_time__date__gte=start_date)
+        if end_date:
+            date_filter &= Q(actual_delivery_completed_time__date__lte=end_date)
+
+        # Aggregate daily summary from deliveries, not from DriverWorkHistory
         daily_summary = (
-            DriverWorkHistory.objects.filter(user=user)
+            Delivery.objects.filter(driver=user)
             .filter(date_filter)
-            .annotate(day=TruncDate("user__driver__actual_delivery_completed_time"))  # Use delivery completion date
-            .values("day")  # Group by day
+            .annotate(day=TruncDate("actual_delivery_completed_time"))
+            .values("day")
             .annotate(
-                total_deliveries=Sum("total_deliveries"),
-                total_earnings=Sum("total_earnings"),
-                offline_count=Sum("offline_count"),
-                on_time_deliveries=Sum("on_time_deliveries"),
-                total_active_hours=Sum("total_active_hours"),
-                online_duration=Sum("online_duration"),
+                total_deliveries=Count("id"),
+                total_earnings=Sum("driver_earning"),
+                offline_count=Count("driver__work_history__offline_count"),  # Ensure correct tracking
+                on_time_deliveries=Sum(
+                    Case(
+                        When(actual_delivery_completed_time__lte=F("est_delivery_completed_time"), then=1),
+                        default=0,
+                        output_field=IntegerField(),
+                    )
+                ),
+                total_active_hours=Sum("driver__work_history__total_active_hours"),
+                online_duration=Sum("driver__work_history__online_duration"),
             )
             .order_by("-day")
         )
@@ -429,15 +437,22 @@ class BaseDriverWorkHistorySummaryView(APIView):
         
                 
         completed_deliveries = Delivery.objects.filter(
-            status="delivery_success",
-            driver=user
+            driver=user, 
+            status=Delivery.STATUS_TYPE.DELIVERY_SUCCESS
         )
-
+        if start_date:
+            completed_deliveries = completed_deliveries.filter(actual_delivery_completed_time__date__gte=start_date)
+        if end_date:
+            completed_deliveries = completed_deliveries.filter(actual_delivery_completed_time__date__lte=end_date)
+                    
         cancelled_deliveries = Delivery.objects.filter(
-            status="delivery_cancelled",
-            driver=user
+            driver=user, 
+            status=Delivery.STATUS_TYPE.CANCELED
         )
-   
+        if start_date:
+            cancelled_deliveries = cancelled_deliveries.filter(actual_delivery_completed_time__date__gte=start_date)
+        if end_date:
+            cancelled_deliveries = cancelled_deliveries.filter(actual_delivery_completed_time__date__lte=end_date)
 
         # Serialize deliveries
         completed_deliveries_data = DeliveryGETSerializer(completed_deliveries, many=True).data
