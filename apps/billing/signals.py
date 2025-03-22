@@ -25,65 +25,66 @@ post_save.connect(delivery_instance, sender=Delivery)
 
 
 # Cache for previous statuses
-PREVIOUS_DELIVERY_STATUSES = {}
+
+# PREVIOUS_DELIVERY_STATUSES = {}
 
 
-@receiver(pre_save, sender=Delivery)
-def track_status_change(sender, instance, **kwargs):
-    """
-    Detect if delivery status is changing.
-    """
-    if instance.pk:
-        try:
-            previous_instance = Delivery.objects.get(pk=instance.pk)
-            PREVIOUS_DELIVERY_STATUSES[instance.pk] = previous_instance.status
+# @receiver(pre_save, sender=Delivery)
+# def track_status_change(sender, instance, **kwargs):
+#     """
+#     Detect if delivery status is changing.
+#     """
+#     if instance.pk:
+#         try:
+#             previous_instance = Delivery.objects.get(pk=instance.pk)
+#             PREVIOUS_DELIVERY_STATUSES[instance.pk] = previous_instance.status
 
-            if previous_instance.status != instance.status:
-                instance.status_changed = True
-                print(f"[PRE_SAVE] Status changed from {previous_instance.status} → {instance.status}")
-            else:
-                print("[PRE_SAVE] Status unchanged.")
-        except Delivery.DoesNotExist:
-            PREVIOUS_DELIVERY_STATUSES[instance.pk] = None
-            print("[PRE_SAVE] Delivery not found.")
-    else:
-        instance.is_new = True  # Optional if you're setting this manually
-        PREVIOUS_DELIVERY_STATUSES[instance.pk] = None
-        print("[PRE_SAVE] New Delivery detected (no PK).")
-
-
-@receiver(post_save, sender=Delivery)
-def handle_delivery_update(sender, instance: Delivery, **kwargs):
-    print("[POST_SAVE] Delivery signal triggered.", instance.pickup_customer_name)
-    print(f"→ Delivery ID: {instance.id}")
-    print(f"→ Status: {instance.status}")
-
-    is_new = getattr(instance, "is_new", False)
-    status_changed = getattr(instance, "status_changed", False)
-
-    if not is_new and not status_changed:
-        print("[POST_SAVE] Skipping — neither new nor status changed.")
-        return
-
-    event_type = instance.status.lower()
+#             if previous_instance.status != instance.status:
+#                 instance.status_changed = True
+#                 print(f"[PRE_SAVE] Status changed from {previous_instance.status} → {instance.status}")
+#             else:
+#                 print("[PRE_SAVE] Status unchanged.")
+#         except Delivery.DoesNotExist:
+#             PREVIOUS_DELIVERY_STATUSES[instance.pk] = None
+#             print("[PRE_SAVE] Delivery not found.")
+#     else:
+#         instance.is_new = True  # Optional if you're setting this manually
+#         PREVIOUS_DELIVERY_STATUSES[instance.pk] = None
+#         print("[PRE_SAVE] New Delivery detected (no PK).")
 
 
+# @receiver(post_save, sender=Delivery)
+# def handle_delivery_update(sender, instance: Delivery, **kwargs):
+#     print("[POST_SAVE] Delivery signal triggered.", instance.pickup_customer_name)
+#     print(f"→ Delivery ID: {instance.id}")
+#     print(f"→ Status: {instance.status}")
 
-    tokens = list(TokenFCM.objects.values_list("token", flat=True))
-    if not tokens:
-        print(f"[POST_SAVE] No tokens found for all user.")
-        return
+#     is_new = getattr(instance, "is_new", False)
+#     status_changed = getattr(instance, "status_changed", False)
 
-    restaurant_name = instance.pickup_customer_name
-    title, body = get_dynamic_message(instance, event_type, restaurant_name)
+#     if not is_new and not status_changed:
+#         print("[POST_SAVE] Skipping — neither new nor status changed.")
+#         return
 
-    data = {
-        "campaign_title": title,
-        "campaign_message": body,
-    }
+#     event_type = instance.status.lower()
 
-    print("[POST_SAVE] Sending push notification...")
-    print("tokens", tokens)
-    send_push_notification(tokens, data)
 
-    PREVIOUS_DELIVERY_STATUSES.pop(instance.pk, None)
+
+#     tokens = list(TokenFCM.objects.values_list("token", flat=True))
+#     if not tokens:
+#         print(f"[POST_SAVE] No tokens found for all user.")
+#         return
+
+#     restaurant_name = instance.pickup_customer_name
+#     title, body = get_dynamic_message(instance, event_type, restaurant_name)
+
+#     data = {
+#         "campaign_title": title,
+#         "campaign_message": body,
+#     }
+
+#     print("[POST_SAVE] Sending push notification...")
+#     print("tokens", tokens)
+#     send_push_notification(tokens, data)
+
+#     PREVIOUS_DELIVERY_STATUSES.pop(instance.pk, None)
