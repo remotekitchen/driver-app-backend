@@ -40,6 +40,7 @@ class BaseCreateDeliveryAPIView(APIView):
         
 
         instance = serializer.instance
+        instance.is_new = True  # ✅ MUST be set before save
         drop_address = f"{instance.drop_off_address.street_address} {instance.drop_off_address.city} {instance.drop_off_address.state} {instance.drop_off_address.postal_code} {instance.drop_off_address.country} "
         # drop_address = f"{instance.drop_off_address.drop_address}"
         
@@ -84,7 +85,6 @@ class BaseCreateDeliveryAPIView(APIView):
         instance.status = Delivery.STATUS_TYPE.WAITING_FOR_DRIVER
         instance.est_delivery_completed_time = instance.pickup_last_time + timedelta(minutes=estimated_travel_time_minutes)
         instance.drop_off_last_time = instance.est_delivery_completed_time
-        # instance._is_new = True
         instance.save()
 
         sr = DeliveryGETSerializer(instance)
