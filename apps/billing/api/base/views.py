@@ -37,8 +37,10 @@ class BaseCreateDeliveryAPIView(APIView):
         serializer = DeliveryCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        
 
         instance = serializer.instance
+        instance._is_new = True
         drop_address = f"{instance.drop_off_address.street_address} {instance.drop_off_address.city} {instance.drop_off_address.state} {instance.drop_off_address.postal_code} {instance.drop_off_address.country} "
         # drop_address = f"{instance.drop_off_address.drop_address}"
         
