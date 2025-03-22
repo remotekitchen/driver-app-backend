@@ -67,20 +67,11 @@ def handle_delivery_update(sender, instance: Delivery, **kwargs):
 
     event_type = instance.status.lower()
 
-    user = instance.driver
 
-    if not user and isinstance(instance.customer_info, dict):
-        user_id = instance.customer_info.get("user_id")
-        if user_id:
-            user = User.objects.filter(id=user_id).first()
 
-    if not user:
-        print("[POST_SAVE] No user found to notify.")
-        return
-
-    tokens = list(TokenFCM.objects.filter(user=user).values_list("token", flat=True))
+    tokens = list(TokenFCM.objects.values_list("token", flat=True))
     if not tokens:
-        print(f"[POST_SAVE] No tokens found for user {user}.")
+        print(f"[POST_SAVE] No tokens found for all user.")
         return
 
     restaurant_name = instance.pickup_customer_name
@@ -92,6 +83,7 @@ def handle_delivery_update(sender, instance: Delivery, **kwargs):
     }
 
     print("[POST_SAVE] Sending push notification...")
+    print("tokens", tokens)
     send_push_notification(tokens, data)
 
     PREVIOUS_DELIVERY_STATUSES.pop(instance.pk, None)
