@@ -84,7 +84,7 @@ class BaseCreateDeliveryAPIView(APIView):
         instance.status = Delivery.STATUS_TYPE.WAITING_FOR_DRIVER
         instance.est_delivery_completed_time = instance.pickup_last_time + timedelta(minutes=estimated_travel_time_minutes)
         instance.drop_off_last_time = instance.est_delivery_completed_time
-        instance._is_new = True
+        # instance._is_new = True
         instance.save()
 
         sr = DeliveryGETSerializer(instance)
