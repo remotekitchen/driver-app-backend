@@ -1,6 +1,7 @@
 from django.utils import timezone
 from django.db.models import F
 from apps.accounts.models import DriverWorkHistory, DriverSession
+from decimal import Decimal
 
 
 def update_driver_work_history(driver, delivery):
@@ -26,7 +27,7 @@ def update_driver_work_history(driver, delivery):
 
     # Update total deliveries and earnings
     work_history.total_deliveries = F("total_deliveries") + 1
-    work_history.total_earnings = F("total_earnings") + delivery.driver_earning
+    work_history.total_earnings = F("total_earnings") + Decimal(str(delivery.driver_earning))
 
     # Check if the delivery was on time
     if delivery.est_delivery_completed_time and delivery.actual_delivery_completed_time <= delivery.est_delivery_completed_time:
