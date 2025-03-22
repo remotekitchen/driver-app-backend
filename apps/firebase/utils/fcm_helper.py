@@ -141,57 +141,55 @@ def remove_invalid_tokens_from_database(invalid_tokens):
 
 
 
-
 def get_dynamic_message(order, event_type, restaurant_name):
     """
-    Generate a dynamic title and message body for a given event type with deeper context.
+    Generate a dynamic title and message body for a given event type tailored to a fast-paced food delivery raider app.
     """
 
     print("🔥 Generating dynamic message for:", order, event_type)
 
     if event_type == "created":
-        title = f"🆕 New Order #{order.id} Received!"
-        body = f"Great news! A fresh order has been placed at {restaurant_name}. The team is preparing it now! 🍳👨‍🍳"
+        title = f"🎯 Mission Started: Order #{order.id} Placed!"
+        body = f"A new order just dropped at {restaurant_name}. Gear up — it’s go time! 💥🍽️"
 
     elif event_type == "waiting_for_driver":
-        title = f"🚗 Looking for a Driver for Order #{order.id}"
-        body = f"We're finding the best driver to deliver your order from {restaurant_name}. Hang tight! ⏳"
+        title = f"🕵️ Searching for a Raider for Order #{order.id}"
+        body = f"Looking for the fastest raider to take on this mission from {restaurant_name}. Stand by! 🔍"
 
     elif event_type == "driver_assign":
-        title = f"🚀 Driver Assigned for Order #{order.id}!"
-        body = f"A driver has been assigned and is heading to {restaurant_name} for pickup. 🏍️💨"
+        title = f"🎮 Raider Assigned to Order #{order.id}!"
+        body = f"A top raider is en route to {restaurant_name} for pickup. Lock and load! ⚡🏍️"
 
     elif event_type == "order_picked_up":
-        title = f"📦 Order #{order.id} Picked Up!"
-        body = f"The driver has picked up your order from {restaurant_name}! Expect a delicious arrival soon. 🍔"
+        title = f"📦 Package Secured: Order #{order.id} Picked Up!"
+        body = f"The raider has grabbed the goods from {restaurant_name}. The run begins! 🚀"
 
     elif event_type == "on_the_way":
-        title = f"🛣️ Order #{order.id} is On the Way!"
-        body = f"Your order is on its way to you! Keep an eye out for your delivery. 🚗💨"
+        title = f"🛣️ Order #{order.id} In Transit!"
+        body = f"The raider is blazing through the streets with your meal. ETA: soon! 🔥"
 
     elif event_type == "arrived":
-        title = f"📍 Order #{order.id} - Driver Has Arrived!"
-        body = f"Your delivery has arrived at your location! Please meet the driver to receive your order. 🍽️"
+        title = f"📍 Drop Point Reached for Order #{order.id}!"
+        body = f"The raider is at your doorstep. Time to collect your feast! 🍱⚔️"
 
     elif event_type == "delivery_success":
-        title = f"✅ Order #{order.id} Delivered Successfully!"
-        body = f"Enjoy your meal! Your order has been delivered fresh and hot. Bon appétit! 🍕😋"
+        title = f"✅ Mission Complete: Order #{order.id} Delivered!"
+        body = f"Another successful raid! Your meal has arrived — dig in, hero. 🥇🍕"
 
     elif event_type == "delivery_failed":
-        title = f"❌ Order #{order.id} Delivery Failed!"
-        body = f"Oops! There was an issue with your delivery. Please contact support for assistance. 📞"
+        title = f"❌ Mission Failed: Order #{order.id}"
+        body = f"The raid couldn’t be completed. Reach out to support to regroup. 🛠️"
 
     elif event_type == "driver_rejected":
-        title = f"⚠️ Order #{order.id} - Driver Unavailable"
-        body = f"A driver was unable to pick up your order. We’re trying to assign a new one ASAP! 🔄"
+        title = f"🚫 Raider Declined Order #{order.id}"
+        body = f"A raider couldn’t take the mission. Searching for the next available warrior. ♻️"
 
     elif event_type == "canceled":
-        title = f"🚫 Order #{order.id} Canceled"
-        body = f"Your order has been canceled. If you need assistance, feel free to reach out to our support team. 🛠️"
+        title = f"🗑️ Order #{order.id} Canceled"
+        body = f"This mission has been called off. For more info, reach out to HQ. 🧭"
 
     else:
         title = f"ℹ️ Update on Order #{order.id}"
-        body = f"Your order status has changed. Please check the app for the latest updates. 📲"
+        body = f"Status update received. Check your dashboard for the latest intel. 🛰️"
 
     return title, body
-
