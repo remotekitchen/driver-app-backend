@@ -22,14 +22,16 @@ def delivery_instance(sender, instance: Delivery, created, **kwargs):
 post_save.connect(delivery_instance, sender=Delivery)
 
 
-# For tracking old status before save
+
+
+# Cache for previous statuses
 PREVIOUS_DELIVERY_STATUSES = {}
 
 
 @receiver(pre_save, sender=Delivery)
 def track_status_change(sender, instance, **kwargs):
     """
-    Cache previous status and detect status changes.
+    Detect if delivery status is changing.
     """
     if instance.pk:
         try:
@@ -37,35 +39,40 @@ def track_status_change(sender, instance, **kwargs):
             PREVIOUS_DELIVERY_STATUSES[instance.pk] = previous_instance.status
 
             if previous_instance.status != instance.status:
-                instance._status_changed = True
-                print(f"[PRE_SAVE] Status changed from {previous_instance.status} to {instance.status}")
+                instance.status_changed = True
+                print(f"[PRE_SAVE] Status changed from {previous_instance.status} → {instance.status}")
+            else:
+                print("[PRE_SAVE] Status unchanged.")
         except Delivery.DoesNotExist:
             PREVIOUS_DELIVERY_STATUSES[instance.pk] = None
-            print("[PRE_SAVE] Delivery does not exist in DB.")
+            print("[PRE_SAVE] Delivery not found.")
     else:
-        instance._is_new = True
+        instance.is_new = True  # Optional if you're setting this manually
         PREVIOUS_DELIVERY_STATUSES[instance.pk] = None
         print("[PRE_SAVE] New Delivery detected (no PK).")
 
 
 @receiver(post_save, sender=Delivery)
-def handle_delivery_update(sender, instance: Delivery, created, **kwargs):
-    print("[POST_SAVE] Delivery signal triggered.")
-    print("Status:", instance.status, "Raw created flag:", created)
+def handle_delivery_update(sender, instance: Delivery, **kwargs):
+    print("[POST_SAVE] Delivery signal triggered.", instance.pickup_customer_name)
+    print(f"→ Delivery ID: {instance.id}")
+    print(f"→ Status: {instance.status}")
 
-    truly_created = getattr(instance, '_is_new', False)
-    status_changed = getattr(instance, '_status_changed', False)
+    is_new = getattr(instance, "is_new", False)
+    status_changed = getattr(instance, "status_changed", False)
 
-    if not truly_created and not status_changed:
-        print("[POST_SAVE] No relevant change (neither new nor status change). Skipping.")
+    if not is_new and not status_changed:
+        print("[POST_SAVE] Skipping — neither new nor status changed.")
         return
 
     event_type = instance.status.lower()
 
-    # Get user from driver or customer_info
     user = instance.driver
-    if not user and instance.customer_info.get("user_id"):
-        user = User.objects.filter(id=instance.customer_info["user_id"]).first()
+
+    if not user and isinstance(instance.customer_info, dict):
+        user_id = instance.customer_info.get("user_id")
+        if user_id:
+            user = User.objects.filter(id=user_id).first()
 
     if not user:
         print("[POST_SAVE] No user found to notify.")
@@ -76,15 +83,15 @@ def handle_delivery_update(sender, instance: Delivery, created, **kwargs):
         print(f"[POST_SAVE] No tokens found for user {user}.")
         return
 
-    # Use placeholder or real restaurant/pickup name
-    title, body = get_dynamic_message(instance, event_type, "Restaurant")
+    restaurant_name = instance.pickup_customer_name
+    title, body = get_dynamic_message(instance, event_type, restaurant_name)
+
     data = {
         "campaign_title": title,
         "campaign_message": body,
     }
 
+    print("[POST_SAVE] Sending push notification...")
     send_push_notification(tokens, data)
-    print(f"🔔 Notification sent to user {user.id}: {title} - {body}")
 
-    # Cleanup
     PREVIOUS_DELIVERY_STATUSES.pop(instance.pk, None)
