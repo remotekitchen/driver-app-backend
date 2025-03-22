@@ -40,7 +40,7 @@ class BaseCreateDeliveryAPIView(APIView):
         
 
         instance = serializer.instance
-        # instance.is_new = True  # ✅ MUST be set before save
+        instance.is_new = True  # ✅ MUST be set before save
         drop_address = f"{instance.drop_off_address.street_address} {instance.drop_off_address.city} {instance.drop_off_address.state} {instance.drop_off_address.postal_code} {instance.drop_off_address.country} "
         # drop_address = f"{instance.drop_off_address.drop_address}"
         
