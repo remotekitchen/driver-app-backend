@@ -7,5 +7,5 @@ urlpatterns = [
     path("delivery/", include("apps.billing.urls")),
     path("address/", include("apps.core.urls")),
     path("firebase/", include("apps.firebase.urls")),
-
+    path("chat/", include("apps.chat.urls")),
 ]

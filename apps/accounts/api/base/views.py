@@ -37,6 +37,7 @@ from django.db.models.functions import TruncDate
 import pytz
 import json
 from django.db.models import Count, Sum, Case, When, IntegerField
+from rest_framework.authentication import TokenAuthentication
 
 
 class AbstractBaseLoginView(GenericAPIView):
@@ -468,3 +469,15 @@ class BaseDriverWorkHistorySummaryView(APIView):
             },
             status=200,
         )
+        
+class BaseDriverVerifyChatView(APIView):
+  authentication_classes = [TokenAuthentication]
+  permission_classes = [IsAuthenticated]
+  
+  def get(self, request, *args, **kwargs):
+    return Response({
+        "id": request.user.id,
+        "username": request.user.first_name + " " + request.user.last_name,
+        "email": request.user.email,
+        "role": 'driver',
+      }, status=200)
