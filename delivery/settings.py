@@ -247,6 +247,7 @@ ASGI_APPLICATION = 'delivery.asgi.application'
 
 # CHATCHEF_BACKEND_URL = "https://api.chatchefs.com/api/"
 CHATCHEF_BACKEND_URL = "http://127.0.0.1:8000/api/"
+DELIVERY_BACKEND_URL = "http://127.0.0.1:9000/"
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',

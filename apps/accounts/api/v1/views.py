@@ -13,7 +13,8 @@ from apps.accounts.api.base.views import (
     BaseDriverSessionView,
     BaseDriverStatusView,
     BaseAdminGetAllActiveDriversView,
-    BaseDriverWorkHistorySummaryView
+    BaseDriverWorkHistorySummaryView,
+    BaseDriverVerifyChatView
 )
 from apps.accounts.api.v1.serializers import ChangePasswordSerializer, UserSerializer
 
@@ -68,4 +69,7 @@ class AdminGetAllActiveDriversView(BaseAdminGetAllActiveDriversView):
     pass
   
 class DriverWorkHistorySummaryView(BaseDriverWorkHistorySummaryView):
+    pass
+  
+class DriverVerifyChatView(BaseDriverVerifyChatView):
     pass

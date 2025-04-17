@@ -13,6 +13,7 @@ class BaseGetChatHistoryView(APIView):
         return Response([
             {
                 "sender": msg.sender_id,
+                "sender_name": msg.sender_name,
                 "message": msg.message,
                 "timestamp": msg.timestamp,
             } for msg in messages
