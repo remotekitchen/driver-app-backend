@@ -15,7 +15,8 @@ from apps.accounts.api.v1.views import (
     DriverSessionView,
     DriverStatusView,
     AdminGetAllActiveDriversView,
-    DriverWorkHistorySummaryView
+    DriverWorkHistorySummaryView,
+    DriverVerifyChatView
 
 )
 
@@ -57,5 +58,6 @@ urlpatterns = [
     ),
        path('user/active-status/', DriverSessionView.as_view(), name='active-status'),
        path('user/active-drivers/', AdminGetAllActiveDriversView.as_view(), name='active-drivers'),
-       path('user/driver-work-history/', DriverWorkHistorySummaryView.as_view(), name='driver-work-history')
+       path('user/driver-work-history/', DriverWorkHistorySummaryView.as_view(), name='driver-work-history'),
+       path('user/verify-chat-user/', DriverVerifyChatView.as_view(), name='verify-chat-user')
 ]

@@ -245,13 +245,14 @@ SITE_ID = 1
 
 ASGI_APPLICATION = 'delivery.asgi.application'
 
-
+# CHATCHEF_BACKEND_URL = "https://api.chatchefs.com/api/"
+CHATCHEF_BACKEND_URL = "http://127.0.0.1:8000/api/"
+DELIVERY_BACKEND_URL = "http://127.0.0.1:9000/"
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            'hosts': [('localhost', 6379)],  # Make sure Redis is accessible on this host and port
+            'hosts': [('127.0.0.1', 6379)],  # Redis connection
         },
     },
 }

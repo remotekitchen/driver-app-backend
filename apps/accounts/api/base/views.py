@@ -37,6 +37,7 @@ from django.db.models.functions import TruncDate
 import pytz
 import json
 from django.db.models import Count, Sum, Case, When, IntegerField
+from rest_framework.authentication import TokenAuthentication
 
 
 class AbstractBaseLoginView(GenericAPIView):
@@ -326,12 +327,20 @@ class BaseDriverSessionView(APIView):
             message = "You are already active." if is_active else "You are already offline."
             return Response({"message": message}, status=status.HTTP_200_OK)
 
-        # Update the session's active status
+        # ✅ Set last_online_time only when becoming active
         session.is_active = is_active
-        session.save(update_fields=["is_active"])
+        if is_active:
+            from django.utils.timezone import now
+            session.last_online_time = now()
+
+        session.save(update_fields=["is_active", "last_online_time"])
 
         return Response(
-            {"message": "Driver session status updated.", "is_active": session.is_active},
+            {
+                "message": "Driver session status updated.",
+                "is_active": session.is_active,
+                "last_online_time": session.last_online_time,
+            },
             status=status.HTTP_200_OK
         )
 
@@ -468,3 +477,15 @@ class BaseDriverWorkHistorySummaryView(APIView):
             },
             status=200,
         )
+        
+class BaseDriverVerifyChatView(APIView):
+  authentication_classes = [TokenAuthentication]
+  permission_classes = [IsAuthenticated]
+  
+  def get(self, request, *args, **kwargs):
+    return Response({
+        "id": request.user.id,
+        "username": request.user.first_name + " " + request.user.last_name,
+        "email": request.user.email,
+        "role": 'driver',
+      }, status=200)
