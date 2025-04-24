@@ -23,42 +23,68 @@ post_save.connect(delivery_instance, sender=Delivery)
 
 
 
+
+# Cache for previous statuses
+
+PREVIOUS_DELIVERY_STATUSES = {}
+
+
 @receiver(pre_save, sender=Delivery)
 def track_status_change(sender, instance, **kwargs):
-    """Track if the status of a delivery is being updated."""
-    if instance.pk:  # Ensure it's an update, not a new object
-        previous_instance = Delivery.objects.get(pk=instance.pk)
-        if previous_instance.status != instance.status:
-            instance._status_changed = True  # Mark the status as changed
+    """
+    Detect if delivery status is changing.
+    """
+    if instance.pk:
+        try:
+            previous_instance = Delivery.objects.get(pk=instance.pk)
+            PREVIOUS_DELIVERY_STATUSES[instance.pk] = previous_instance.status
+
+            if previous_instance.status != instance.status:
+                instance.status_changed = True
+                print(f"[PRE_SAVE] Status changed from {previous_instance.status} → {instance.status}")
+            else:
+                print("[PRE_SAVE] Status unchanged.")
+        except Delivery.DoesNotExist:
+            PREVIOUS_DELIVERY_STATUSES[instance.pk] = None
+            print("[PRE_SAVE] Delivery not found.")
+    else:
+        instance.is_new = True  # Optional if you're setting this manually
+        PREVIOUS_DELIVERY_STATUSES[instance.pk] = None
+        print("[PRE_SAVE] New Delivery detected (no PK).")
+
 
 @receiver(post_save, sender=Delivery)
-def handle_delivery_update(sender, instance: Delivery, created, **kwargs):
-    if created:
-        client_status_updater(instance)
+def handle_delivery_update(sender, instance: Delivery, **kwargs):
+    print("[POST_SAVE] Delivery signal triggered.", instance.pickup_customer_name)
+    print(f"→ Delivery ID: {instance.id}")
+    print(f"→ Status: {instance.status}")
 
-    if not created and getattr(instance, "_status_changed", False):
-        event_type = instance.status.lower()
-        
-        # Use driver or extract user from customer_info
-        user = instance.driver or None  # If driver exists, use it
-        if not user and instance.customer_info.get("user_id"):  # Try to get user from customer_info
-            user = User.objects.filter(id=instance.customer_info["user_id"]).first()
+    is_new = getattr(instance, "is_new", False)
+    status_changed = getattr(instance, "status_changed", False)
 
-        if not user:
-            return  # No user found, no need to proceed
+    if not is_new and not status_changed:
+        print("[POST_SAVE] Skipping — neither new nor status changed.")
+        return
 
-        tokens = list(TokenFCM.objects.filter(user=user).values_list("token", flat=True))
-        # restaurant_name = instance.pickup_address.name  
+    event_type = instance.status.lower()
 
-        if not tokens:
-            return
 
-        title, body = get_dynamic_message(instance, event_type, "restaurant_name")
-        data={
-            "campaign_title": title,
-            "campaign_message": body,
-        }
-        # Send push notification
-        send_push_notification(tokens, data)
 
-        print(f"🔔 Notification Sent: {title} - {body}")  # For debugging
+    tokens = list(TokenFCM.objects.values_list("token", flat=True))
+    if not tokens:
+        print(f"[POST_SAVE] No tokens found for all user.")
+        return
+
+    restaurant_name = instance.pickup_customer_name
+    title, body = get_dynamic_message(instance, event_type, restaurant_name)
+
+    data = {
+        "campaign_title": title,
+        "campaign_message": body,
+    }
+
+    print("[POST_SAVE] Sending push notification...")
+    print("tokens", tokens)
+    send_push_notification(tokens, data)
+
+    PREVIOUS_DELIVERY_STATUSES.pop(instance.pk, None)
