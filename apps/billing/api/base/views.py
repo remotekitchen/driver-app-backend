@@ -449,7 +449,9 @@ class BaseOrderUpdateRetrieveApiView(APIView):
         return Response(sr.data, status=status.HTTP_200_OK)
       
     def patch(self, request, client_id):
+        print(client_id, 'client_id--------------->')
         order = get_object_or_404(Delivery, client_id=client_id, driver=request.user)
+        print(order, 'order--------------->')
         serializer = DeliveryGETSerializer(order, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()

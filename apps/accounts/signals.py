@@ -33,14 +33,21 @@ def order_delivered_update_history(sender, instance, **kwargs):
         work_history, created = DriverWorkHistory.objects.get_or_create(user=instance.driver)
 
         work_history.total_deliveries += 1
-        work_history.total_earnings += instance.driver_earning
-        work_history.on_time_deliveries += 1 if instance.actual_delivery_completed_time <= instance.est_delivery_completed_time else 0
+        work_history.total_earnings += Decimal(str(instance.driver_earning))
 
-        # Correct online duration calculation (assuming instance has start & end time)
-        if instance.driver.is_active:
-            last_online_time = instance.driver.last_online_time
-            if last_online_time:
-                time_online = (timezone.now() - last_online_time).total_seconds() / 3600  # Convert to hours
-                work_history.online_duration += round(time_online, 2)
+        if instance.actual_delivery_completed_time and instance.est_delivery_completed_time:
+            if instance.actual_delivery_completed_time <= instance.est_delivery_completed_time:
+                work_history.on_time_deliveries += 1
+
+        # Look for the most recent active DriverSession with last_online_time
+        session = (
+            DriverSession.objects.filter(user=instance.driver, is_active=True)
+            .order_by("-last_online_time")
+            .first()
+        )
+
+        if session and session.last_online_time:
+            time_online = (timezone.now() - session.last_online_time).total_seconds() / 3600
+            work_history.online_duration += round(Decimal(time_online), 2)
 
         work_history.save()

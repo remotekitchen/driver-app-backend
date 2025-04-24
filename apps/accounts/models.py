@@ -241,6 +241,7 @@ class DriverSession(models.Model):
 
     is_active = models.BooleanField(default=False, verbose_name=_("Is Active"))
     created_at = models.DateTimeField(blank=True, default=now)
+    last_online_time = models.DateTimeField(null=True, blank=True, default=None)
 
     class Meta:
         unique_together = ('user', 'weekday', 'session_slot')

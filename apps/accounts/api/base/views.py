@@ -327,12 +327,20 @@ class BaseDriverSessionView(APIView):
             message = "You are already active." if is_active else "You are already offline."
             return Response({"message": message}, status=status.HTTP_200_OK)
 
-        # Update the session's active status
+        # ✅ Set last_online_time only when becoming active
         session.is_active = is_active
-        session.save(update_fields=["is_active"])
+        if is_active:
+            from django.utils.timezone import now
+            session.last_online_time = now()
+
+        session.save(update_fields=["is_active", "last_online_time"])
 
         return Response(
-            {"message": "Driver session status updated.", "is_active": session.is_active},
+            {
+                "message": "Driver session status updated.",
+                "is_active": session.is_active,
+                "last_online_time": session.last_online_time,
+            },
             status=status.HTTP_200_OK
         )
 
