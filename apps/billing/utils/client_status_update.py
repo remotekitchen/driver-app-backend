@@ -30,6 +30,8 @@ def client_status_updater(instance: Delivery):
         "uid": f"{instance.uid}",
         "status": instance.status,
         "actual_delivery_completed_time": serialize_datetime(instance.actual_delivery_completed_time),
+        "rider_accepted_time": serialize_datetime(instance.rider_accepted_time),
+        "rider_pickup_time":serialize_datetime(instance.rider_pickup_time),
         "driver_info": [serializer.data['driver']],
     }
     res = requests.post(
