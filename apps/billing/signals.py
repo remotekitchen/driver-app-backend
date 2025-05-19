@@ -6,6 +6,7 @@ from django.dispatch import receiver
 from apps.firebase.utils.fcm_helper import get_dynamic_message, send_push_notification
 from apps.firebase.models import TokenFCM
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 User = get_user_model()
 
@@ -88,3 +89,21 @@ def handle_delivery_update(sender, instance: Delivery, **kwargs):
     send_push_notification(tokens, data)
 
     PREVIOUS_DELIVERY_STATUSES.pop(instance.pk, None)
+
+
+@receiver(post_save, sender=Delivery)
+def update_driver_timestamps(sender, instance, created, **kwargs):
+    """
+    Set EST timestamps based on delivery status:
+    - Set rider_accepted_time when status is DRIVER_ASSIGNED.
+    - Set rider_pickup_time when status is ORDER_PICKED_UP.
+    """
+    now_est = timezone.now()
+
+    if instance.status == Delivery.STATUS_TYPE.DRIVER_ASSIGNED and not instance.rider_accepted_time:
+        instance.rider_accepted_time = now_est
+        instance.save(update_fields=["rider_accepted_time"])
+
+    elif instance.status == Delivery.STATUS_TYPE.ORDER_PICKED_UP and not instance.rider_pickup_time:
+        instance.rider_pickup_time = now_est
+        instance.save(update_fields=["rider_pickup_time"])
