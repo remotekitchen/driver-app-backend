@@ -39,9 +39,20 @@ class BaseDriverSerializer(serializers.ModelSerializer):
 
 
 class BaseDeliverySerializer(WritableNestedModelSerializer):
+    time_so_far = serializers.SerializerMethodField()
     class Meta:
         model = Delivery
         fields = "__all__"
+    
+    def get_time_so_far(self, obj):
+        if obj.created_date and obj.pickup_last_time:
+            delta = obj.pickup_last_time - obj.pickup_ready_at
+            seconds = int(delta.total_seconds())
+            if seconds < 60:
+                return f"{seconds} seconds"
+            return f"{seconds // 60} minutes"
+        return "N/A"
+            
 
     def validate(self, attrs):
         # Determine the new status; if not provided in attrs, fall back to the current instance.
