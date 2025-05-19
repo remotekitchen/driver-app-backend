@@ -87,6 +87,12 @@ class Delivery(BaseModel):
     actual_delivery_completed_time = models.DateTimeField(
         null=True, blank=True, verbose_name=_("actual delivery completed time")
     )
+    rider_accepted_time = models.DateTimeField(
+        verbose_name=_("Rider Accepted Time"), blank=True, null=True
+    )
+    rider_pickup_time = models.DateTimeField(
+        verbose_name=_("Rider Pickup Time"), blank=True, null=True
+    )
 
     status = models.CharField(
         max_length=100,
