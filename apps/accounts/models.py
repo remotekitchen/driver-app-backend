@@ -7,6 +7,7 @@ from apps.core.models import Address, BaseModel
 
 from datetime import time
 from django.utils.timezone import now
+from django.contrib.postgres.fields import ArrayField
 
 class User(AbstractUser):
     class RoleType(models.TextChoices):
@@ -223,12 +224,12 @@ class DriverSession(models.Model):
         limit_choices_to={'role': User.RoleType.DRIVER},
     )
 
-    weekday = models.CharField(
-        max_length=10,
-        choices=Weekdays.choices,
-        verbose_name=_("Weekday"),
-        help_text=_("The specific day of the week for this session"),
-        default=Weekdays.MONDAY
+    weekday = ArrayField(
+        base_field=models.CharField(max_length=10, choices=Weekdays.choices),
+        verbose_name=_("Weekdays"),
+        help_text=_("List of weekdays for this session"),
+        size=7,  # max 7 days a week
+        default=list,  # default empty list
     )
 
     session_slot = models.CharField(
