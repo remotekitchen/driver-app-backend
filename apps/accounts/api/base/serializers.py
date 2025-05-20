@@ -142,7 +142,9 @@ class BaseDriverSessionSerializer(serializers.ModelSerializer):
         queryset=User.objects.filter(role=User.RoleType.DRIVER),
         help_text="Select the driver for this session"
     )
-    weekday = serializers.ChoiceField(choices=DriverSession.Weekdays.choices)
+    weekday = serializers.ListField(
+    child=serializers.ChoiceField(choices=DriverSession.Weekdays.choices))
+
     session_slot = serializers.ChoiceField(choices=DriverSession.SessionSlots.choices)
     created_at = serializers.DateTimeField(read_only=True)
 
