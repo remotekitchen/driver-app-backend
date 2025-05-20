@@ -1,5 +1,4 @@
 import math
-
 import googlemaps
 import requests
 from decouple import config
@@ -12,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db import transaction
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, datetime
 from django.shortcuts import get_object_or_404
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
@@ -21,6 +20,7 @@ from apps.billing.api.base.serializers import (
     CheckAddressSerializer,
     DeliveryCreateSerializer,
     DeliveryGETSerializer,
+    DashboardSerializer
 )
 from apps.billing.models import Delivery, DeliveryFee
 from django.utils.dateparse import parse_date
@@ -28,6 +28,9 @@ from django.utils.dateparse import parse_date
 gmaps = googlemaps.Client(key=config("GOOGLE_MAP_KEY"))
 mapbox_api_key = config("MAPBOX_KEY")
 User = get_user_model()
+from apps.billing.api.base.serializers import BaseDriverSerializer
+from django.utils.timezone import now
+from django.db.models import Count
 
 
 class BaseCreateDeliveryAPIView(APIView):
@@ -521,4 +524,166 @@ class BaseAdminGetAllOrdersApiView(APIView):
 
         serializer = DeliveryGETSerializer(orders, many=True)
         return Response({"count": orders.count(), "orders": serializer.data})
-        
+
+
+class BaseDashboardSalesApiView(APIView):
+    def get(self, request):
+        # Parse query params with defaults
+        start_date_str = request.query_params.get('start_date')
+        end_date_str = request.query_params.get('end_date')
+        order_type = request.query_params.get('order_type', 'delivery')
+
+        try:
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else now().date()
+        except:
+            return Response({"error": "Invalid end_date"}, status=400)
+
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else end_date - timedelta(days=6)
+        except:
+            return Response({"error": "Invalid start_date"}, status=400)
+
+        prev_start_date = start_date - timedelta(days=7)
+        prev_end_date = start_date - timedelta(days=1)
+
+        # Greeting
+        current_hour = now().hour
+        if 5 <= current_hour < 12:
+            greeting = "Good morning"
+        elif 12 <= current_hour < 18:
+            greeting = "Good afternoon"
+        else:
+            greeting = "Good evening"
+        admin_name = "Admin"
+
+        # Get drivers dynamically (filter your driver role/group)
+        drivers = User.objects.filter(role=User.RoleType.DRIVER) 
+        print(drivers, 'drivers--------------->')
+        driver_ids = list(drivers.values_list('id', flat=True))
+        driver_names = {driver.id: " ".join(filter(None, [driver.first_name, driver.last_name])) for driver in drivers}
+        print(driver_names, 'driver_names--------------->')
+
+        # Total deliveries this week by driver
+        deliveries_this_week = (
+            Delivery.objects.filter(
+                driver_id__in=driver_ids,
+                actual_delivery_completed_time__range=[start_date, end_date],
+                status=Delivery.STATUS_TYPE.DELIVERY_SUCCESS,
+            )
+            .values('driver_id')
+            .annotate(count=Count('id'))
+        )
+        deliveries_this_week_map = {item['driver_id']: item['count'] for item in deliveries_this_week}
+
+        # Total deliveries previous week by driver
+        deliveries_prev_week = (
+            Delivery.objects.filter(
+                driver_id__in=driver_ids,
+                actual_delivery_completed_time__date__range=[prev_start_date, prev_end_date],
+                status=Delivery.STATUS_TYPE.DELIVERY_SUCCESS,
+            )
+            .values('driver_id')
+            .annotate(count=Count('id'))
+        )
+        deliveries_prev_week_map = {item['driver_id']: item['count'] for item in deliveries_prev_week}
+
+        # Build driver summary with weekly growth
+        driver_summary_list = []
+        total_deliveries_all = 0
+        total_deliveries_prev_all = 0
+        for driver in drivers:
+            this_week_count = deliveries_this_week_map.get(driver.id, 0)
+            prev_week_count = deliveries_prev_week_map.get(driver.id, 0)
+            total_deliveries_all += this_week_count
+            total_deliveries_prev_all += prev_week_count
+            growth = 0.0
+            if prev_week_count > 0:
+                growth = ((this_week_count - prev_week_count) / prev_week_count) * 100
+
+            driver_summary_list.append({
+                'driver_name': driver_names[driver.id],
+                'orders_delivered': this_week_count,
+                'weekly_growth_pct': round(growth, 1),
+            })
+
+        # Sort driver summary by orders_delivered descending
+        driver_summary_list.sort(key=lambda x: x['orders_delivered'], reverse=True)
+
+        # Build daily driver deliveries (last 7 days)
+        days = [start_date + timedelta(days=i) for i in range(7)]
+        day_names = [day.strftime('%a') for day in days]
+
+        daily_deliveries_list = []
+        for day in days:
+            day_data = {'day': day.strftime('%a'), 'deliveries': {}}
+            # For each driver, count deliveries on that day
+            print(day, 'day--------------->')
+            for driver in drivers:
+                count = Delivery.objects.filter(
+                    driver=driver,
+                    actual_delivery_completed_time__date=day,
+                    status=Delivery.STATUS_TYPE.DELIVERY_SUCCESS
+                ).count()
+                print(count, 'count--------------->')
+                day_data['deliveries'][driver_names[driver.id]] = count
+            daily_deliveries_list.append(day_data)
+
+        # Filter deliveries in the date range if you want
+        deliveries = Delivery.objects.filter(actual_delivery_completed_time__date__range=[start_date, end_date])
+
+        # Total number of deliveries
+        total_deliveries = deliveries.count()
+
+        # Total number of completed deliveries (DELIVERY_SUCCESS)
+        completed_deliveries = deliveries.filter(status=Delivery.STATUS_TYPE.DELIVERY_SUCCESS).count()
+        print(completed_deliveries, 'completed_deliveries--------------->')
+        completed_deliveries_prev = Delivery.objects.filter(
+            actual_delivery_completed_time__date__range=[prev_start_date, prev_end_date],
+            status=Delivery.STATUS_TYPE.DELIVERY_SUCCESS
+        ).count()
+
+        if total_deliveries > 0:
+            average_fulfillment_rate = (completed_deliveries / total_deliveries) * 100
+        else:
+            average_fulfillment_rate = 0.0
+        # fulfillment rate change % (compared to previous week)  
+        fulfillment_rate_change_pct = 0.0
+        # Calculate previous period fulfillment rate first
+        if total_deliveries_prev_all > 0:
+            prev_fulfillment_rate = (completed_deliveries_prev / total_deliveries_prev_all) * 100
+        else:
+            prev_fulfillment_rate = 0.0
+
+        fulfillment_rate_change_pct = 0.0
+        if prev_fulfillment_rate > 0:
+            fulfillment_rate_change_pct = ((average_fulfillment_rate - prev_fulfillment_rate) / prev_fulfillment_rate) * 100
+        # Calculate overall driver delivery count change %
+        driver_delivery_count_change_pct = 0
+        if total_deliveries_prev_all > 0:
+            driver_delivery_count_change_pct = ((total_deliveries_all - total_deliveries_prev_all) / total_deliveries_prev_all) * 100
+
+        # Build driver details list
+        driver_details_list = []
+        for driver in drivers:
+            driver_details_list.append({
+                'driver_id': f"{driver.id}",
+                'driver_name': " ".join(filter(None, [driver.first_name, driver.last_name])),
+                'phone_number': driver.phone or '',
+                'status': 'Active' if driver.is_active else 'Offline'
+            })
+
+        # Compose response
+        response_data = {
+            'greeting': greeting,
+            'admin_name': admin_name,
+            'average_fulfillment_rate': round(average_fulfillment_rate, 2),
+            'fulfillment_rate_change_pct': round(fulfillment_rate_change_pct, 1),
+            'driver_delivery_count': total_deliveries_all,
+            'driver_delivery_count_change_pct': round(driver_delivery_count_change_pct, 1),
+            'daily_driver_deliveries': daily_deliveries_list,
+            'driver_summary': driver_summary_list,
+            'driver_details': driver_details_list,
+        }
+
+        serializer = DashboardSerializer(instance=response_data)
+        return Response(serializer.data)

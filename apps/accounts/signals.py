@@ -33,7 +33,11 @@ def order_delivered_update_history(sender, instance, **kwargs):
         work_history, created = DriverWorkHistory.objects.get_or_create(user=instance.driver)
 
         work_history.total_deliveries += 1
-        work_history.total_earnings += Decimal(str(instance.driver_earning))
+        if not isinstance(work_history.total_earnings, Decimal):
+            work_history.total_earnings = Decimal(str(work_history.total_earnings))
+
+        driver_earning_decimal = Decimal(str(instance.driver_earning))
+        work_history.total_earnings += driver_earning_decimal
 
         if instance.actual_delivery_completed_time and instance.est_delivery_completed_time:
             if instance.actual_delivery_completed_time <= instance.est_delivery_completed_time:
