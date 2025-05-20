@@ -291,14 +291,11 @@ class BaseDriverSessionView(APIView):
     def post(self, request, *args, **kwargs):
         serializer = DriverSessionSerializer(data=request.data)
         if serializer.is_valid():
-            created_sessions = serializer.save()
-            return Response(
-                {
-                    "detail": f"Created {len(created_sessions)} session(s) successfully.",
-                    "sessions": DriverSessionSerializer(created_sessions, many=True).data
-                },
-                status=status.HTTP_201_CREATED
-            )
+            created_session = serializer.save()
+            return Response({
+                "detail": "Created session successfully.",
+                "session": DriverSessionSerializer(created_session).data
+            }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get(self, request, *args, **kwargs):
