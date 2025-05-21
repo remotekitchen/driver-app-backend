@@ -45,13 +45,20 @@ class BaseDeliverySerializer(WritableNestedModelSerializer):
         fields = "__all__"
     
     def get_time_so_far(self, obj):
-        if obj.created_date and obj.pickup_last_time:
-            delta = obj.pickup_last_time - obj.pickup_ready_at
+        # If obj is a dict, get values by key; else get attribute
+        created_date = obj.get('created_date') if isinstance(obj, dict) else getattr(obj, 'created_date', None)
+        pickup_last_time = obj.get('pickup_last_time') if isinstance(obj, dict) else getattr(obj, 'pickup_last_time', None)
+        pickup_ready_at = obj.get('pickup_ready_at') if isinstance(obj, dict) else getattr(obj, 'pickup_ready_at', None)
+
+        if created_date and pickup_last_time and pickup_ready_at:
+            delta = pickup_last_time - pickup_ready_at
             seconds = int(delta.total_seconds())
             if seconds < 60:
                 return f"{seconds} seconds"
             return f"{seconds // 60} minutes"
+
         return "N/A"
+
             
 
     def validate(self, attrs):
