@@ -6,7 +6,7 @@ from apps.accounts.models import Profile, Vehicle
 from apps.billing.models import Delivery
 from apps.core.api.base.serializers import BaseAddressSerializer
 from django.utils import timezone
-
+from dateutil.parser import parse
 User = get_user_model()
 
 
@@ -45,12 +45,20 @@ class BaseDeliverySerializer(WritableNestedModelSerializer):
         fields = "__all__"
     
     def get_time_so_far(self, obj):
-        # If obj is a dict, get values by key; else get attribute
-        created_date = obj.get('created_date') if isinstance(obj, dict) else getattr(obj, 'created_date', None)
-        pickup_last_time = obj.get('pickup_last_time') if isinstance(obj, dict) else getattr(obj, 'pickup_last_time', None)
-        pickup_ready_at = obj.get('pickup_ready_at') if isinstance(obj, dict) else getattr(obj, 'pickup_ready_at', None)
+        pickup_last_time = getattr(obj, 'pickup_last_time', None)
+        pickup_ready_at = getattr(obj, 'pickup_ready_at', None)
 
-        if created_date and pickup_last_time and pickup_ready_at:
+        if isinstance(obj, dict):
+            pickup_last_time = obj.get('pickup_last_time')
+            pickup_ready_at = obj.get('pickup_ready_at')
+
+        if pickup_last_time and pickup_ready_at:
+            # Convert strings to datetime if needed
+            if isinstance(pickup_last_time, str):
+                pickup_last_time = parse(pickup_last_time)
+            if isinstance(pickup_ready_at, str):
+                pickup_ready_at = parse(pickup_ready_at)
+
             delta = pickup_last_time - pickup_ready_at
             seconds = int(delta.total_seconds())
             if seconds < 60:
@@ -113,3 +121,38 @@ class DeliveryGETSerializer(DeliveryCreateSerializer):
 class BaseCancelDeliverySerializer(serializers.Serializer):
     uid = serializers.CharField()
     reason = serializers.CharField(required=False)
+
+# Dynamic daily deliveries serializer item
+class DailyDriverDeliverySerializer(serializers.Serializer):
+    day = serializers.CharField()
+    deliveries = serializers.DictField(child=serializers.IntegerField())
+
+class DriverSummarySerializer(serializers.Serializer):
+    driver_name = serializers.CharField()
+    email = serializers.CharField()
+    orders_delivered = serializers.IntegerField()
+    weekly_growth_pct = serializers.FloatField()
+
+class DriverDetailSerializer(serializers.Serializer):
+    driver_id = serializers.CharField()
+    driver_name = serializers.CharField()
+    phone_number = serializers.CharField()
+    email = serializers.CharField()
+    status = serializers.CharField()
+    days_since_joined = serializers.IntegerField()
+    avg_cost_per_delivery = serializers.FloatField()
+    fulfillment_rate = serializers.FloatField()
+    on_time_delivery_rate = serializers.FloatField()
+    total_earnings = serializers.FloatField()
+    avg_earning_per_month = serializers.FloatField()
+
+class DashboardSerializer(serializers.Serializer):
+    greeting = serializers.CharField()
+    admin_name = serializers.CharField()
+    average_fulfillment_rate = serializers.FloatField()
+    fulfillment_rate_change_pct = serializers.FloatField()
+    driver_delivery_count = serializers.IntegerField()
+    driver_delivery_count_change_pct = serializers.FloatField()
+    daily_driver_deliveries = DailyDriverDeliverySerializer(many=True)
+    driver_summary = DriverSummarySerializer(many=True)
+    driver_details = DriverDetailSerializer(many=True)

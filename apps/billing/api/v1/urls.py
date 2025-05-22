@@ -10,7 +10,8 @@ from apps.billing.api.v1.views import (
     OrderUpdateRetrieveApiView,
     PickedUpOrdersApiViews,
     DriverOrderApiView,
-    AdminGetAllOrdersApiView
+    AdminGetAllOrdersApiView,
+    DashboardSalesApiView
 )
 
 urlpatterns = [
@@ -23,5 +24,6 @@ urlpatterns = [
     path("order/<int:client_id>/", OrderUpdateRetrieveApiView.as_view()),
     path("picked-up-deliveries/", PickedUpOrdersApiViews.as_view()),
     path("driver-order/", DriverOrderApiView.as_view()),
-    path("admin-orders/", AdminGetAllOrdersApiView.as_view())
+    path("admin-orders/", AdminGetAllOrdersApiView.as_view()),
+    path("dashboard-sales/", DashboardSalesApiView.as_view())
 ]
