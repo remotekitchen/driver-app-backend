@@ -66,6 +66,7 @@ class BaseDeliverySerializer(WritableNestedModelSerializer):
             return f"{seconds // 60} minutes"
 
         return "N/A"
+
             
 
     def validate(self, attrs):
