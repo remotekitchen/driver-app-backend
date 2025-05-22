@@ -128,6 +128,7 @@ class DailyDriverDeliverySerializer(serializers.Serializer):
 
 class DriverSummarySerializer(serializers.Serializer):
     driver_name = serializers.CharField()
+    email = serializers.CharField()
     orders_delivered = serializers.IntegerField()
     weekly_growth_pct = serializers.FloatField()
 
@@ -135,7 +136,14 @@ class DriverDetailSerializer(serializers.Serializer):
     driver_id = serializers.CharField()
     driver_name = serializers.CharField()
     phone_number = serializers.CharField()
+    email = serializers.CharField()
     status = serializers.CharField()
+    days_since_joined = serializers.IntegerField()
+    avg_cost_per_delivery = serializers.FloatField()
+    fulfillment_rate = serializers.FloatField()
+    on_time_delivery_rate = serializers.FloatField()
+    total_earnings = serializers.FloatField()
+    avg_earning_per_month = serializers.FloatField()
 
 class DashboardSerializer(serializers.Serializer):
     greeting = serializers.CharField()
