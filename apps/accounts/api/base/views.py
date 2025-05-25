@@ -340,6 +340,20 @@ class BaseDriverSessionView(APIView):
             },
             status=status.HTTP_200_OK
         )
+        
+    def delete(self, request, *args, **kwargs):
+        user = request.user
+        session_id = request.data.get("session_id") or request.query_params.get("session_id")
+        if not session_id:
+            return Response({"error": "session_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            session = DriverSession.objects.get(id=session_id, user=user)
+        except DriverSession.DoesNotExist:
+            return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        session.delete()
+        return Response({"message": "Driver session deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
 
 
       
