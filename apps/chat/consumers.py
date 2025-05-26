@@ -5,6 +5,7 @@ from django.conf import settings
 import httpx
 from apps.chat.models import ChatMessage
 from asgiref.sync import sync_to_async
+import urllib.parse
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -12,11 +13,29 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.order_id = self.scope['url_route']['kwargs']['order_id']
         self.chat_group = f'chat_{self.order_id}'
 
-        print(f"🔍 User trying to join chat group: {self.chat_group}")  # Debugging
+        # ✅ Parse token from query params
+        query_string = self.scope.get("query_string", b"").decode()
+        params = urllib.parse.parse_qs(query_string)
+        token = params.get("token", [None])[0]
 
-        # Accept the WebSocket connection first
+        if not token:
+            print("❌ No token provided in query params.")
+            await self.close()
+            return
+
+        # ✅ Authenticate user before accepting connection
+        self.user = await self.authenticate_user(token)
+        if not self.user:
+            print("❌ Invalid token, rejecting connection.")
+            await self.close()
+            return
+
+        print(f"✅ User {self.user['id']} authenticated for chat {self.chat_group}")
+
+        # ✅ Accept and add to group
         await self.accept()
-        print("✅ WebSocket connection accepted.")
+        await self.channel_layer.group_add(self.chat_group, self.channel_name)
+        print("✅ WebSocket connection accepted and joined group.")
 
     async def receive(self, text_data):
         data = json.loads(text_data)
