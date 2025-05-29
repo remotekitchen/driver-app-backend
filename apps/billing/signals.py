@@ -7,7 +7,7 @@ from apps.firebase.utils.fcm_helper import get_dynamic_message, send_push_notifi
 from apps.firebase.models import TokenFCM
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-
+import pytz
 User = get_user_model()
 
 
@@ -99,11 +99,13 @@ def update_driver_timestamps(sender, instance, created, **kwargs):
     - Set rider_pickup_time when status is ORDER_PICKED_UP.
     """
     now_est = timezone.now()
-
+    bdt = pytz.timezone('Asia/Dhaka')
+    bdt_time = timezone.now().astimezone(bdt)
     if instance.status == Delivery.STATUS_TYPE.DRIVER_ASSIGNED and not instance.rider_accepted_time:
-        instance.rider_accepted_time = now_est
+        
+        instance.rider_accepted_time = bdt_time
         instance.save(update_fields=["rider_accepted_time"])
 
     elif instance.status == Delivery.STATUS_TYPE.ORDER_PICKED_UP and not instance.rider_pickup_time:
-        instance.rider_pickup_time = now_est
+        instance.rider_pickup_time = bdt_time
         instance.save(update_fields=["rider_pickup_time"])

@@ -7,6 +7,7 @@ from apps.billing.models import Delivery
 from apps.core.api.base.serializers import BaseAddressSerializer
 from django.utils import timezone
 from dateutil.parser import parse
+import pytz
 User = get_user_model()
 
 
@@ -86,8 +87,10 @@ class BaseDeliverySerializer(WritableNestedModelSerializer):
         
         # Automatically set cash_collected to the order amount when status is DELIVERY_SUCCESS
         if new_status == Delivery.STATUS_TYPE.DELIVERY_SUCCESS:
+            bdt = pytz.timezone('Asia/Dhaka')
+            bdt_time = timezone.now().astimezone(bdt)
             validated_data['cash_collected'] = instance.amount
-            validated_data['actual_delivery_completed_time'] = timezone.now()
+            validated_data['actual_delivery_completed_time'] = bdt_time
             
         
         
