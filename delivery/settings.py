@@ -256,3 +256,7 @@ CHANNEL_LAYERS = {
         },
     },
 }
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://raider.api.chatchefs.com',
+]
