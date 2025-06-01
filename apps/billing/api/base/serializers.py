@@ -3,7 +3,7 @@ from drf_writable_nested.serializers import WritableNestedModelSerializer
 from rest_framework import serializers
 
 from apps.accounts.models import Profile, Vehicle
-from apps.billing.models import Delivery
+from apps.billing.models import Delivery, DeliveryIssue
 from apps.core.api.base.serializers import BaseAddressSerializer
 from django.utils import timezone
 from dateutil.parser import parse
@@ -159,3 +159,14 @@ class DashboardSerializer(serializers.Serializer):
     daily_driver_deliveries = DailyDriverDeliverySerializer(many=True)
     driver_summary = DriverSummarySerializer(many=True)
     driver_details = DriverDetailSerializer(many=True)
+    
+    
+    
+class DeliveryIssueSerializer(serializers.ModelSerializer):
+    order_id= serializers.SerializerMethodField()
+    class Meta:
+        model = DeliveryIssue
+        fields = '__all__'
+        
+    def get_order_id(self, obj):
+        return obj.delivery.client_id if obj.delivery else None

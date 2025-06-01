@@ -8,4 +8,5 @@ urlpatterns = [
     path("address/", include("apps.core.urls")),
     path("firebase/", include("apps.firebase.urls")),
     path("chat/", include("apps.chat.urls")),
+    path('store/', include('apps.store.urls')),
 ]

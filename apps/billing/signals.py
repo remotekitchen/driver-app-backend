@@ -1,7 +1,8 @@
 from django.db.models.signals import post_save, pre_save
 
-from apps.billing.models import Delivery
+from apps.billing.models import Delivery, DeliveryIssue
 from apps.billing.utils.client_status_update import client_status_updater
+from apps.billing.utils.send_sms import send_sms_bd
 from django.dispatch import receiver
 from apps.firebase.utils.fcm_helper import get_dynamic_message, send_push_notification
 from apps.firebase.models import TokenFCM
@@ -109,3 +110,12 @@ def update_driver_timestamps(sender, instance, created, **kwargs):
     elif instance.status == Delivery.STATUS_TYPE.ORDER_PICKED_UP and not instance.rider_pickup_time:
         instance.rider_pickup_time = bdt_time
         instance.save(update_fields=["rider_pickup_time"])
+
+
+@receiver(post_save, sender=DeliveryIssue)
+def notify_delivery_issue(sender, instance, created, **kwargs):
+    if created:
+        issue = instance
+        message = f"New delivery issue reported!\nType: {issue.get_issue_type_display()}\nReported by: {issue.get_reported_by_display()}\nDelivery ID: {issue.delivery.id}"
+        phone_number = "01330625034"
+        send_sms_bd(phone_number, message)
