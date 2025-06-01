@@ -168,3 +168,49 @@ class DeliveryFee(BaseModel):
 
     def __str__(self):
         return f"{self.id} {self.distance}"
+
+
+
+class DeliveryIssue(BaseModel):
+    ISSUE_TYPE = (
+        ("missing_item", "Missing Item"),
+        ("wrong_item", "Wrong Item"),
+        ("damaged_item", "Damaged Item"),
+        ("late_delivery", "Late Delivery"),
+        ("other", "Other"),
+    )
+    REPORTED_BY_CHOICES = (
+        ("customer", "Customer"),
+        ("driver", "Driver"),
+        ("store", "Store"),
+    )
+    
+    STATUS_CHOICES = (
+        ("open", "Open"),
+        ("in_progress", "In Progress"),
+        ("resolved", "Resolved"),
+        ("closed", "Closed"),
+    )
+    reported_by = models.CharField(
+        max_length=20, choices=REPORTED_BY_CHOICES, default="customer"
+    )
+    proof_image = models.ImageField(upload_to="delivery_issue_proofs", blank=True, null=True)
+    issue_type = models.CharField(max_length=50, choices=ISSUE_TYPE, default="other")
+    description = models.TextField(blank=True, null=True)
+    delivery = models.ForeignKey(
+        Delivery, on_delete=models.CASCADE, related_name="issues", verbose_name="Delivery"
+    )
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default="open", verbose_name="Status"
+    )
+    order_id = models.CharField(
+        max_length=255, blank=True, null=True, verbose_name="Order ID"
+    )
+    
+    def __str__(self):
+        return f"Issue {self.id} for Delivery {self.delivery.id} - {self.get_issue_type_display()}"
+    class Meta:
+        ordering = ["-id"]
+        verbose_name = "Delivery Issue"
+        verbose_name_plural = "Delivery Issues"
+    

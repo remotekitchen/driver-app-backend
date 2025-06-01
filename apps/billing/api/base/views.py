@@ -20,9 +20,10 @@ from apps.billing.api.base.serializers import (
     CheckAddressSerializer,
     DeliveryCreateSerializer,
     DeliveryGETSerializer,
-    DashboardSerializer
+    DashboardSerializer,
+    DeliveryIssueSerializer,
 )
-from apps.billing.models import Delivery, DeliveryFee
+from apps.billing.models import Delivery, DeliveryFee, DeliveryIssue
 from django.utils.dateparse import parse_date
 
 gmaps = googlemaps.Client(key=config("GOOGLE_MAP_KEY"))
@@ -817,3 +818,39 @@ class BaseDashboardSalesApiView(APIView):
 
         serializer = DashboardSerializer(instance=response_data)
         return Response(serializer.data)
+      
+      
+class BaseDeliveryIssueCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """
+        Returns a list of delivery issues.
+        """
+        issues = DeliveryIssue.objects.all()
+        serializer = DeliveryIssueSerializer(issues, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request, *args, **kwargs):
+        serializer = DeliveryIssueSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+      
+    def patch(self, request, pk):
+        """
+        Updates a delivery issue.
+        """
+        issue = get_object_or_404(DeliveryIssue, pk=pk)
+        serializer = DeliveryIssueSerializer(issue, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    def delete(self, request, pk):
+        """
+        Deletes a delivery issue.
+        """
+        issue = get_object_or_404(DeliveryIssue, pk=pk)
+        issue.delete()
+        return Response({"message": "Delivery issue deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+    
