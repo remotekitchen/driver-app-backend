@@ -76,7 +76,9 @@ INSTALLED_APPS = [
     "apps.chat",
     'templates',
     'django_extensions',
-    'apps.firebase'
+    'apps.firebase',
+    'apps.store',
+    'apps.voucher',
 ]
 
 AUTH_USER_MODEL = "accounts.User"
