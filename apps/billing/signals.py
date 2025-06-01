@@ -117,5 +117,5 @@ def notify_delivery_issue(sender, instance, created, **kwargs):
     if created:
         issue = instance
         message = f"New delivery issue reported!\nType: {issue.get_issue_type_display()}\nReported by: {issue.get_reported_by_display()}\nDelivery ID: {issue.delivery.id}"
-        phone_number = "01330625034"
+        phone_number = "01711690821"
         send_sms_bd(phone_number, message)
