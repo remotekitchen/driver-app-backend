@@ -170,3 +170,32 @@ class DeliveryIssueSerializer(serializers.ModelSerializer):
         
     def get_order_id(self, obj):
         return obj.delivery.client_id if obj.delivery else None
+      
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Get the initial value of 'reported_by'
+        reported_by = None
+        if "data" in kwargs:
+            reported_by = kwargs["data"].get("reported_by")
+        elif hasattr(self, "initial_data"):
+            reported_by = self.initial_data.get("reported_by")
+
+        # Dynamically set issue_type choices
+        if reported_by:
+            self.fields["issue_type"].choices = DeliveryIssue.get_issue_type_choices(reported_by)
+        else:
+            self.fields["issue_type"].choices = [("other", "Other")]
+
+    def validate(self, attrs):
+        reported_by = attrs.get("reported_by")
+        issue_type = attrs.get("issue_type")
+
+        valid_choices = dict(DeliveryIssue.get_issue_type_choices(reported_by))
+
+        if issue_type not in valid_choices:
+            raise serializers.ValidationError({
+                "issue_type": "Invalid issue type for the selected reporter."
+            })
+
+        return attrs
