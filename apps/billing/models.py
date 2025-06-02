@@ -172,11 +172,18 @@ class DeliveryFee(BaseModel):
 
 
 class DeliveryIssue(BaseModel):
-    ISSUE_TYPE = (
+    CUSTOMER_ISSUE_TYPE = (
         ("missing_item", "Missing Item"),
         ("wrong_item", "Wrong Item"),
         ("damaged_item", "Damaged Item"),
         ("late_delivery", "Late Delivery"),
+        ("other", "Other"),
+    )
+    
+    DRIVER_ISSUE_TYPE = (
+        ("vehicle_issue", "Vehicle Issue"),
+        ("traffic_delay", "Traffic Delay"),
+        ("route_issue", "Route Issue"),
         ("other", "Other"),
     )
     REPORTED_BY_CHOICES = (
@@ -195,7 +202,7 @@ class DeliveryIssue(BaseModel):
         max_length=20, choices=REPORTED_BY_CHOICES, default="customer"
     )
     proof_image = models.ImageField(upload_to="delivery_issue_proofs", blank=True, null=True)
-    issue_type = models.CharField(max_length=50, choices=ISSUE_TYPE, default="other")
+    issue_type = models.CharField(max_length=50, default="other")
     description = models.TextField(blank=True, null=True)
     delivery = models.ForeignKey(
         Delivery, on_delete=models.CASCADE, related_name="issues", verbose_name="Delivery"
@@ -205,10 +212,23 @@ class DeliveryIssue(BaseModel):
     )
     order_id = models.CharField(
         max_length=255, blank=True, null=True, verbose_name="Order ID"
+        
+        
     )
+    
+    
+    
     
     def __str__(self):
         return f"Issue {self.id} for Delivery {self.delivery.id} - {self.get_issue_type_display()}"
+      
+    @classmethod
+    def get_issue_type_choices(cls, reported_by):
+        if reported_by == "customer":
+            return cls.CUSTOMER_ISSUE_TYPE
+        elif reported_by == "driver":
+            return cls.DRIVER_ISSUE_TYPE
+        return [("other", "Other")]
     class Meta:
         ordering = ["-id"]
         verbose_name = "Delivery Issue"
