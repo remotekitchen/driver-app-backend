@@ -34,7 +34,8 @@ from django.utils.timezone import now
 from django.db.models import Count, Sum
 from collections import defaultdict
 from django.db.models.functions import TruncDate
-
+from apps.billing.utils.earning_calculation import calculate_driver_earning, calculate_penalty, calculate_total_driver_earning
+from apps.billing.models import DeliveryEarningConfig
 
 class BaseCreateDeliveryAPIView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
@@ -62,7 +63,7 @@ class BaseCreateDeliveryAPIView(APIView):
             instance.use_google,
         )
 
-        if distance > 10:
+        if distance > 15:
             return Response(
                 "We can not deliver to this address!",
                 status=status.HTTP_400_BAD_REQUEST,
@@ -76,11 +77,21 @@ class BaseCreateDeliveryAPIView(APIView):
         
         print(instance.pickup_last_time, 'instance.pickup_last_time--------------->')
         
-        # Calculate average speed (in km/h)
-        average_speed_kmh = 12.5  # Midpoint of 10-15 km/h range
+        # # Calculate average speed (in km/h)
+        # average_speed_kmh = 12.5  # Midpoint of 10-15 km/h range
 
-        # Calculate estimated travel time in minutes
-        estimated_travel_time_minutes = (distance / average_speed_kmh) * 60
+        # # Calculate estimated travel time in minutes
+        # estimated_travel_time_minutes = (distance / average_speed_kmh) * 60
+
+        # Load config from DB
+        config = DeliveryEarningConfig.objects.first()
+
+        # If config exists, get estimated_time_per_km, else fallback to 3.5
+        time_per_km_minutes = config.estimated_time_per_km if config else 3.5
+
+        # Now calculate estimated delivery time based on distance
+        estimated_travel_time_minutes = distance * time_per_km_minutes
+
 
         instance.drop_off_latitude = drop_off_pointer.get("lat")
         instance.drop_off_longitude = drop_off_pointer.get("lng")
@@ -235,12 +246,16 @@ class BaseCreateDeliveryAPIView(APIView):
 
         return nearby_drivers
 
-    def calculate_fees(self, distance):
-        fee_per_km = (
-            DeliveryFee.objects.last().per_km if DeliveryFee.objects.exists() else 10
-        )
+    # def calculate_fees(self, distance):
+    #     fee_per_km = (
+    #         DeliveryFee.objects.last().per_km if DeliveryFee.objects.exists() else 10
+    #     )
 
-        return float("{0:.2f}".format(distance * fee_per_km))
+    #     return float("{0:.2f}".format(distance * fee_per_km))
+    def calculate_fees(self, distance):
+        
+        return calculate_driver_earning(distance)
+
 
 
 class BaseCheckAddressAPIView(BaseCreateDeliveryAPIView):
@@ -275,7 +290,7 @@ class BaseCheckAddressAPIView(BaseCreateDeliveryAPIView):
 
         print(distance)
 
-        if distance > 10:
+        if distance > 15:
             return Response(
                 "We can not deliver to this address!",
                 status=status.HTTP_400_BAD_REQUEST,
@@ -462,8 +477,15 @@ class BaseOrderUpdateRetrieveApiView(APIView):
         print(order, 'order--------------->')
         serializer = DeliveryGETSerializer(order, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()
+            # serializer.save()
+            updated_order = serializer.save()
+            #  Apply earning calculation only if delivery is marked as DELIVERY_SUCCESS
+            if updated_order.status == Delivery.STATUS_TYPE.DELIVERY_SUCCESS:
+                updated_order.driver_earning = calculate_total_driver_earning(updated_order)
+                updated_order.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
+        
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
       
 # get the deliveries that's status are order_picked_up
