@@ -8,6 +8,8 @@ from apps.core.api.base.serializers import BaseAddressSerializer
 from django.utils import timezone
 from dateutil.parser import parse
 import pytz
+from apps.billing.utils.earning_calculation import  calculate_total_driver_earning
+
 User = get_user_model()
 
 
@@ -92,7 +94,9 @@ class BaseDeliverySerializer(WritableNestedModelSerializer):
             validated_data['cash_collected'] = instance.amount
             validated_data['actual_delivery_completed_time'] = bdt_time
             
-        
+            # ADD THIS:
+            earning = calculate_total_driver_earning(instance)
+            validated_data['driver_earning'] = earning
         
         return super().update(instance, validated_data)
 
