@@ -6,7 +6,10 @@ from allauth.socialaccount.providers.google.views import (
 )
 
 from apps.accounts.models import User
-
+import logging
+# Set up logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.ERROR)  # Set the log level to capture errors and above
 
 class PreSocialLoginMixin:
     def pre_social_login(self, request, sociallogin):
