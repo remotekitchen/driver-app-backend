@@ -14,6 +14,9 @@ from django.utils import timezone
 from datetime import timedelta, datetime
 from django.shortcuts import get_object_or_404
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from apps.firebase.models import TokenFCM
+from apps.firebase.utils.fcm_helper import send_push_notification
+from apps.core.permissions import IsOwnerRoleOrReadOnly
 
 from apps.billing.api.base.serializers import (
     BaseCancelDeliverySerializer,
@@ -318,7 +321,7 @@ class BaseCheckAddressAPIView(BaseCreateDeliveryAPIView):
 
 
 class BaseCancelDeliveryAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsOwnerRoleOrReadOnly]
 
     def post(self, request):
         sr = BaseCancelDeliverySerializer(data=request.data)
@@ -326,18 +329,108 @@ class BaseCancelDeliveryAPIView(APIView):
         uid = sr.data.get("uid")
         reason = sr.data.get("reason")
 
-        if not Delivery.objects.filter(uid=uid).exists():
+        delivery = Delivery.objects.filter(uid=uid).first()
+        if not delivery:
             return Response(
-                {"message": "delivery does not exists"},
+                {"message": "delivery does not exist"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        delivery = Delivery.objects.get(uid=uid)
-        delivery.status = Delivery.STATUS_TYPE.CANCELED
-        delivery.reason = reason
+        # if not Delivery.objects.filter(uid=uid).exists():
+        #     return Response(
+        #         {"message": "delivery does not exists"},
+        #         status=status.HTTP_400_BAD_REQUEST,
+        #     )
+        
+        now = timezone.now()
+        notification_title = ""
+        notification_message = ""
+        # Check if no driver is assigned
+        if delivery.driver is None:
+            # Handle cancellation due to no driver (before prep time)
+            if now < delivery.pickup_ready_at:
+                # If cancellation before prep time
+                delivery.status = Delivery.STATUS_TYPE.CANCELED
+                delivery.cancel_reason = reason or "No driver available before prep time"
+                notification_title = "Order Cancelled"
+                notification_message = "Your order has been cancelled by the restaurant."
+            else:
+                # If no driver is assigned but after prep time
+                delivery.status = Delivery.STATUS_TYPE.DELIVERY_FAILED
+                delivery.cancel_reason = reason or "No driver available after prep time"
+                notification_title = "Delivery Failed"
+                notification_message = "We couldn't assign a delivery person. Your order has been cancelled and refunded."
+
+        # If driver is assigned and cancellation happens before prep time (restaurant cancels)
+        elif now < delivery.pickup_ready_at:
+            delivery.status = Delivery.STATUS_TYPE.CANCELED
+            delivery.cancel_reason = reason or "Restaurant cancelled before prep time"
+            notification_title = "Order Cancelled"
+            notification_message = "Your order has been cancelled by the restaurant."
+
+        # If cancellation happens after prep time (delivery failed)
+        else:
+            delivery.status = Delivery.STATUS_TYPE.DELIVERY_FAILED
+            delivery.cancel_reason = reason or "Cancelled after prep time"
+            notification_title = "Delivery Failed"
+            notification_message = "We couldn’t process your delivery. You’ll receive a full refund."
+
         delivery.save()
-        return Response({"message": "delivery canceled!"}, status=status.HTTP_200_OK)
+        # Send push notification to consumer
+        customer_info = delivery.customer_info
+        user_id = customer_info.get("user_id")  # Make sure you store user_id inside customer_info while placing order
+
+        if user_id:
+            tokens = list(TokenFCM.objects.filter(user_id=user_id).values_list('token', flat=True))
+            if tokens:
+                data = {
+                    "campaign_title": notification_title,
+                    "campaign_message": notification_message,
+                }
+                send_push_notification(tokens, data)
+        return Response({"message": "delivery cancelled successfully."}, status=status.HTTP_200_OK)
+
+        # delivery = Delivery.objects.get(uid=uid)
+        # delivery.status = Delivery.STATUS_TYPE.CANCELED
+        # delivery.reason = reason
+        # delivery.save()
+        # return Response({"message": "delivery canceled!"}, status=status.HTTP_200_OK)
       
+
+class BaseDriverCancelDeliveryAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, client_id):
+        delivery = get_object_or_404(Delivery, client_id=client_id, driver=request.user)
+
+        if delivery.status in [
+            Delivery.STATUS_TYPE.ORDER_PICKED_UP,
+            Delivery.STATUS_TYPE.ON_THE_WAY
+        ]:
+            delivery.status = Delivery.STATUS_TYPE.DELIVERY_FAILED
+            delivery.cancel_reason = "Driver cancelled during delivery"
+            delivery.save()
+            # Send notification to customer
+            customer_info = delivery.customer_info
+            user_id = customer_info.get("user_id") 
+           
+            if user_id:
+                tokens = TokenFCM.objects.filter(user_id=user_id).values_list('token', flat=True)
+                tokens = list(tokens)
+                if tokens:
+                    data = {
+                        "campaign_title": "Delivery Failed",
+                        "campaign_message": "The delivery man has some issue, you will get full refund.",
+                    }
+                    send_push_notification(tokens, data)
+
+            # TODO: Send notification to consumer if needed
+            return Response({
+                "message": "The delivery man has some issue, you will get full refund."
+            })
+
+        return Response({"message": "Cannot cancel at this stage."}, status=400)
+
       
 class BaseAvailableOrdersApiView(APIView):
     permission_classes = [IsAuthenticated]
