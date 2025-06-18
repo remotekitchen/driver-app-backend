@@ -17,7 +17,12 @@ def client_status_updater(instance: Delivery):
     print(url, 'url------------>')
     
   
-    print(instance.driver.rider_profile, 'instance.driver')
+    # print(instance.driver.rider_profile, 'instance.driver')
+    # Check if the driver is assigned (not None)
+    if instance.driver:
+        print(instance.driver.rider_profile, 'instance.driver')  # Only access rider_profile if driver exists
+    else:
+        print("No driver assigned to this delivery", instance.client_id)
     
     serializer = DeliveryGETSerializer(instance)
     
@@ -32,8 +37,15 @@ def client_status_updater(instance: Delivery):
         "actual_delivery_completed_time": serialize_datetime(instance.actual_delivery_completed_time),
         "rider_accepted_time": serialize_datetime(instance.rider_accepted_time),
         "rider_pickup_time":serialize_datetime(instance.rider_pickup_time),
-        "driver_info": [serializer.data['driver']],
+        # "driver_info": [serializer.data['driver']],
     }
+
+    # If a driver exists, include driver info in the request payload
+    if instance.driver:
+        data["driver_info"] = [serializer.data['driver']]
+    else:
+        data["driver_info"] = []
+
     res = requests.post(
         url,
         headers={
