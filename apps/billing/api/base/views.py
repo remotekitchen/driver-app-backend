@@ -66,11 +66,11 @@ class BaseCreateDeliveryAPIView(APIView):
             instance.use_google,
         )
 
-        if distance > 15:
-            return Response(
-                "We can not deliver to this address!",
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        # if distance > 15:
+        #     return Response(
+        #         "We can not deliver to this address!",
+        #         status=status.HTTP_400_BAD_REQUEST,
+        #     )
 
         # driver = self.assign_driver_based_on_location(
         #     instance.pickup_latitude, instance.pickup_longitude
@@ -107,10 +107,54 @@ class BaseCreateDeliveryAPIView(APIView):
         instance.drop_off_last_time = instance.est_delivery_completed_time
         instance.save()
 
+        # Now, check if On-Time Guarantee applies
+        # if instance.on_time_guarantee_opted_in:
+        #     self.check_on_time_guarantee(instance)
+        
+
         sr = DeliveryGETSerializer(instance)
         print(Response(sr.data), 'Response(sr.data)--------------->')
         return Response(sr.data)
+    
+    # def check_on_time_guarantee(self, delivery):
+    #     """Check if On-Time Guarantee applies and apply reward if applicable."""
+    #     delay_minutes = None
+    #     if delivery.est_delivery_completed_time and delivery.actual_delivery_completed_time:
+    #         delay = delivery.actual_delivery_completed_time - delivery.est_delivery_completed_time
+    #         delay_minutes = delay.total_seconds() / 60  # Convert to minutes
 
+    #     if delay_minutes is not None and delay_minutes > 0:  # Ensure there is a delay
+    #         reward_amount = 0
+    #         if delay_minutes <= 10:
+    #             reward_amount = 10
+    #         elif delay_minutes <= 15:
+    #             reward_amount = 15
+    #         elif delay_minutes <= 30:
+    #             reward_amount = 20
+
+    #         if reward_amount > 0:
+    #             # Issue the reward to the user directly
+    #             self.issue_reward_to_user(delivery, reward_amount)
+
+    # def issue_reward_to_user(self, delivery, reward_amount):
+    #     """Automatically issue the reward to the user."""
+    #     payload = {
+    #         "user_id": delivery.customer_info.get("user_id"),
+    #         "reward_amount": reward_amount,
+    #         "reward_type": "coupon",  # Reward type is a coupon
+    #         "expiry_date": (timezone.now() + timedelta(days=7)).date(),  # Set expiry to 7 days
+    #     }
+
+    #     # No need for the webhook call, directly create the reward in the Chatchef system
+    #     response = requests.post(
+    #         "http://127.0.0.1:9000/api/reward/v1/reward/issue/",  # Chatchef's endpoint for issuing the reward
+    #         json=payload,
+    #         timeout=5
+    #     )
+
+    #     if response.status_code != 200:
+    #         print("Error issuing reward:", response.text)
+   
     def get_lat(self, address, use_google=True):
         if use_google:
             return self.get_geo_using_gmaps(address)

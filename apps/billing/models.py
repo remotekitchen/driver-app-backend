@@ -133,6 +133,11 @@ class Delivery(BaseModel):
     delivered_product_image = models.ImageField(upload_to="delivery_product_images", blank=True, null=True)
     customer_info = models.JSONField(default=dict)
 
+    # Add Opt-In Fields for Guarantee
+    on_time_guarantee_opted_in = models.BooleanField(default=False)
+    on_time_guarantee_fee = models.FloatField(default=0)
+
+
     # def calculate_driver_earning(self):
     #     """
     #     Automatically calculate the driver's earnings when a Delivery instance is created/updated.
@@ -247,9 +252,9 @@ class DeliveryEarningConfig(models.Model):
     extra_per_km = models.FloatField(default=3)
 
     grace_period_minutes = models.IntegerField(default=5)
-    penalty_6_10 = models.FloatField(default=5)
-    penalty_11_15 = models.FloatField(default=10)
-    penalty_above_15 = models.FloatField(default=15)
+    penalty_6_10 = models.FloatField(default=50)
+    penalty_11_15 = models.FloatField(default=50)
+    penalty_above_15 = models.FloatField(default=70)
 
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -21,9 +21,9 @@ def get_config():
         "base_earning": 25,
         "extra_per_km": 3,
         "grace_period_minutes": 5,
-        "penalty_6_10": 5,
-        "penalty_11_15": 10,
-        "penalty_above_15": 20,
+        "penalty_6_10": 50, # Default 50% penalty for delays between 6-10 minutes
+        "penalty_11_15": 50, # Default 50% penalty for delays between 11-15 minutes
+        "penalty_above_15": 70, # Default 70% penalty for delays above 15 minutes
     }
 
 # Calculate earning based on distance
