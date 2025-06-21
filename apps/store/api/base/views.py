@@ -13,7 +13,7 @@ from rest_framework.exceptions import ValidationError
 
 class BaseCreateUpdateDestroyStoreView(APIView):
     serializer_class = BaseStoreSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerRoleOrReadOnly]
+    permission_classes = [IsAuthenticatedOrReadOnly, ]
 
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)

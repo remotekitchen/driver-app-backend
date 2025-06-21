@@ -133,27 +133,32 @@ class Delivery(BaseModel):
     delivered_product_image = models.ImageField(upload_to="delivery_product_images", blank=True, null=True)
     customer_info = models.JSONField(default=dict)
 
-    def calculate_driver_earning(self):
-        """
-        Automatically calculate the driver's earnings when a Delivery instance is created/updated.
-        """
+    # Add Opt-In Fields for Guarantee
+    on_time_guarantee_opted_in = models.BooleanField(default=False)
+    on_time_guarantee_fee = models.FloatField(default=0)
 
-        # Define the base values (these can be customized)
-        base_fee = 7  # Tk
-        peak_hour_bonus = 0  # Default to 0, can be updated dynamically
-        incentives = 0  # Default to 0, can be updated dynamically
-        additional_bonuses = 0  # Default to 0, can be updated dynamically
-        print(self.fees, 'fees----------->')
 
-        # Calculate driver earnings
-        self.driver_earning = base_fee + self.fees + peak_hour_bonus + incentives + additional_bonuses
+    # def calculate_driver_earning(self):
+    #     """
+    #     Automatically calculate the driver's earnings when a Delivery instance is created/updated.
+    #     """
 
-    def save(self, *args, **kwargs):
-        """
-        Override the save method to calculate driver earnings automatically before saving.
-        """
-        self.calculate_driver_earning()  # Call earning calculation before saving
-        super().save(*args, **kwargs)  # Proceed with saving the instance
+        # # Define the base values (these can be customized)
+        # base_fee = 7  # Tk
+        # peak_hour_bonus = 0  # Default to 0, can be updated dynamically
+        # incentives = 0  # Default to 0, can be updated dynamically
+        # additional_bonuses = 0  # Default to 0, can be updated dynamically
+        # print(self.fees, 'fees----------->')
+
+        # # Calculate driver earnings
+        # self.driver_earning = base_fee + self.fees + peak_hour_bonus + incentives + additional_bonuses
+
+    # def save(self, *args, **kwargs):
+    #     """
+    #     Override the save method to calculate driver earnings automatically before saving.
+    #     """
+    #     self.calculate_driver_earning()  # Call earning calculation before saving
+    #     super().save(*args, **kwargs)  # Proceed with saving the instance
 
     def __str__(self):
         return f"{self.id} :: {self.client_id}"
@@ -234,3 +239,24 @@ class DeliveryIssue(BaseModel):
         verbose_name = "Delivery Issue"
         verbose_name_plural = "Delivery Issues"
     
+
+
+
+
+
+
+class DeliveryEarningConfig(models.Model):
+    estimated_time_per_km = models.FloatField(default=3.5)
+    base_distance_km = models.FloatField(default=10)
+    base_earning = models.FloatField(default=25)
+    extra_per_km = models.FloatField(default=3)
+
+    grace_period_minutes = models.IntegerField(default=5)
+    penalty_6_10 = models.FloatField(default=50)
+    penalty_11_15 = models.FloatField(default=50)
+    penalty_above_15 = models.FloatField(default=70)
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return "Delivery Earning & Penalty Config"

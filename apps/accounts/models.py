@@ -212,6 +212,7 @@ class DriverSession(models.Model):
 
     class SessionSlots(models.TextChoices):
         MORNING = "08:00-12:00", _("8 AM - 12 PM")
+        FULLDAY = "08:00-22:00", _("8 AM - 10 PM")
         AFTERNOON = "12:00-16:00", _("12 PM - 4 PM")
         EVENING = "16:00-20:00", _("4 PM - 8 PM")
         NIGHT = "20:00-00:00", _("8 PM - 12 AM")

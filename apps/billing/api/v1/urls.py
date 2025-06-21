@@ -2,6 +2,7 @@ from django.urls import include, path
 
 from apps.billing.api.v1.views import (
     CancelDeliveryAPIView,
+    DriverCancelDeliveryAPIView,
     CheckAddressAPIView,
     CreateDeliveryAPIView,
     AvailableOrdersApiView,
@@ -19,6 +20,7 @@ urlpatterns = [
     path("create-delivery/", CreateDeliveryAPIView.as_view()),
     path("check-address/", CheckAddressAPIView.as_view()),
     path("cancel-delivery/", CancelDeliveryAPIView.as_view()),
+    path('driver-cancel-delivery/<str:client_id>/', DriverCancelDeliveryAPIView.as_view(), name='driver-cancel-delivery'),
     path("available-deliveries/", AvailableOrdersApiView.as_view()),
     path("accept-delivery/<int:client_id>/", AcceptOrderApiView.as_view()),
     path("assigned-deliveries/", DriverAssignedOrdersApiView.as_view()),

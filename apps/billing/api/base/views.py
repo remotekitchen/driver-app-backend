@@ -14,6 +14,9 @@ from django.utils import timezone
 from datetime import timedelta, datetime
 from django.shortcuts import get_object_or_404
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from apps.firebase.models import TokenFCM
+from apps.firebase.utils.fcm_helper import send_push_notification
+from apps.core.permissions import IsOwnerRoleOrReadOnly
 
 from apps.billing.api.base.serializers import (
     BaseCancelDeliverySerializer,
@@ -34,7 +37,8 @@ from django.utils.timezone import now
 from django.db.models import Count, Sum
 from collections import defaultdict
 from django.db.models.functions import TruncDate
-
+from apps.billing.utils.earning_calculation import calculate_driver_earning, calculate_penalty, calculate_total_driver_earning
+from apps.billing.models import DeliveryEarningConfig
 
 class BaseCreateDeliveryAPIView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
@@ -62,11 +66,11 @@ class BaseCreateDeliveryAPIView(APIView):
             instance.use_google,
         )
 
-        if distance > 10:
-            return Response(
-                "We can not deliver to this address!",
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        # if distance > 15:
+        #     return Response(
+        #         "We can not deliver to this address!",
+        #         status=status.HTTP_400_BAD_REQUEST,
+        #     )
 
         # driver = self.assign_driver_based_on_location(
         #     instance.pickup_latitude, instance.pickup_longitude
@@ -76,11 +80,21 @@ class BaseCreateDeliveryAPIView(APIView):
         
         print(instance.pickup_last_time, 'instance.pickup_last_time--------------->')
         
-        # Calculate average speed (in km/h)
-        average_speed_kmh = 12.5  # Midpoint of 10-15 km/h range
+        # # Calculate average speed (in km/h)
+        # average_speed_kmh = 12.5  # Midpoint of 10-15 km/h range
 
-        # Calculate estimated travel time in minutes
-        estimated_travel_time_minutes = (distance / average_speed_kmh) * 60
+        # # Calculate estimated travel time in minutes
+        # estimated_travel_time_minutes = (distance / average_speed_kmh) * 60
+
+        # Load config from DB
+        config = DeliveryEarningConfig.objects.first()
+
+        # If config exists, get estimated_time_per_km, else fallback to 3.5
+        time_per_km_minutes = config.estimated_time_per_km if config else 3.5
+
+        # Now calculate estimated delivery time based on distance
+        estimated_travel_time_minutes = distance * time_per_km_minutes
+
 
         instance.drop_off_latitude = drop_off_pointer.get("lat")
         instance.drop_off_longitude = drop_off_pointer.get("lng")
@@ -93,10 +107,54 @@ class BaseCreateDeliveryAPIView(APIView):
         instance.drop_off_last_time = instance.est_delivery_completed_time
         instance.save()
 
+        # Now, check if On-Time Guarantee applies
+        # if instance.on_time_guarantee_opted_in:
+        #     self.check_on_time_guarantee(instance)
+        
+
         sr = DeliveryGETSerializer(instance)
         print(Response(sr.data), 'Response(sr.data)--------------->')
         return Response(sr.data)
+    
+    # def check_on_time_guarantee(self, delivery):
+    #     """Check if On-Time Guarantee applies and apply reward if applicable."""
+    #     delay_minutes = None
+    #     if delivery.est_delivery_completed_time and delivery.actual_delivery_completed_time:
+    #         delay = delivery.actual_delivery_completed_time - delivery.est_delivery_completed_time
+    #         delay_minutes = delay.total_seconds() / 60  # Convert to minutes
 
+    #     if delay_minutes is not None and delay_minutes > 0:  # Ensure there is a delay
+    #         reward_amount = 0
+    #         if delay_minutes <= 10:
+    #             reward_amount = 10
+    #         elif delay_minutes <= 15:
+    #             reward_amount = 15
+    #         elif delay_minutes <= 30:
+    #             reward_amount = 20
+
+    #         if reward_amount > 0:
+    #             # Issue the reward to the user directly
+    #             self.issue_reward_to_user(delivery, reward_amount)
+
+    # def issue_reward_to_user(self, delivery, reward_amount):
+    #     """Automatically issue the reward to the user."""
+    #     payload = {
+    #         "user_id": delivery.customer_info.get("user_id"),
+    #         "reward_amount": reward_amount,
+    #         "reward_type": "coupon",  # Reward type is a coupon
+    #         "expiry_date": (timezone.now() + timedelta(days=7)).date(),  # Set expiry to 7 days
+    #     }
+
+    #     # No need for the webhook call, directly create the reward in the Chatchef system
+    #     response = requests.post(
+    #         "http://127.0.0.1:9000/api/reward/v1/reward/issue/",  # Chatchef's endpoint for issuing the reward
+    #         json=payload,
+    #         timeout=5
+    #     )
+
+    #     if response.status_code != 200:
+    #         print("Error issuing reward:", response.text)
+   
     def get_lat(self, address, use_google=True):
         if use_google:
             return self.get_geo_using_gmaps(address)
@@ -235,12 +293,16 @@ class BaseCreateDeliveryAPIView(APIView):
 
         return nearby_drivers
 
-    def calculate_fees(self, distance):
-        fee_per_km = (
-            DeliveryFee.objects.last().per_km if DeliveryFee.objects.exists() else 10
-        )
+    # def calculate_fees(self, distance):
+    #     fee_per_km = (
+    #         DeliveryFee.objects.last().per_km if DeliveryFee.objects.exists() else 10
+    #     )
 
-        return float("{0:.2f}".format(distance * fee_per_km))
+    #     return float("{0:.2f}".format(distance * fee_per_km))
+    def calculate_fees(self, distance):
+        
+        return calculate_driver_earning(distance)
+
 
 
 class BaseCheckAddressAPIView(BaseCreateDeliveryAPIView):
@@ -275,7 +337,7 @@ class BaseCheckAddressAPIView(BaseCreateDeliveryAPIView):
 
         print(distance)
 
-        if distance > 10:
+        if distance > 15:
             return Response(
                 "We can not deliver to this address!",
                 status=status.HTTP_400_BAD_REQUEST,
@@ -303,7 +365,7 @@ class BaseCheckAddressAPIView(BaseCreateDeliveryAPIView):
 
 
 class BaseCancelDeliveryAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsOwnerRoleOrReadOnly]
 
     def post(self, request):
         sr = BaseCancelDeliverySerializer(data=request.data)
@@ -311,18 +373,110 @@ class BaseCancelDeliveryAPIView(APIView):
         uid = sr.data.get("uid")
         reason = sr.data.get("reason")
 
-        if not Delivery.objects.filter(uid=uid).exists():
+        delivery = Delivery.objects.filter(uid=uid).first()
+        if not delivery:
             return Response(
-                {"message": "delivery does not exists"},
+                {"message": "delivery does not exist"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        delivery = Delivery.objects.get(uid=uid)
-        delivery.status = Delivery.STATUS_TYPE.CANCELED
-        delivery.reason = reason
+        # if not Delivery.objects.filter(uid=uid).exists():
+        #     return Response(
+        #         {"message": "delivery does not exists"},
+        #         status=status.HTTP_400_BAD_REQUEST,
+        #     )
+        
+        now = timezone.now()
+        notification_title = ""
+        notification_message = ""
+        # Check if no driver is assigned
+        if delivery.driver is None:
+            # Handle cancellation due to no driver (before prep time)
+            if now < delivery.pickup_ready_at:
+                # If cancellation before prep time
+                delivery.status = Delivery.STATUS_TYPE.CANCELED
+                delivery.cancel_reason = reason or "No driver available before prep time"
+                notification_title = "Order Cancelled"
+                notification_message = "Your order has been cancelled by the restaurant."
+            else:
+                # If no driver is assigned but after prep time
+                delivery.status = Delivery.STATUS_TYPE.DELIVERY_FAILED
+                delivery.cancel_reason = reason or "No driver available after prep time"
+                notification_title = "Delivery Failed"
+                notification_message = "We couldn't assign a delivery person. Your order has been cancelled and refunded."
+
+        # If driver is assigned and cancellation happens before prep time (restaurant cancels)
+        elif now < delivery.pickup_ready_at:
+            delivery.status = Delivery.STATUS_TYPE.CANCELED
+            delivery.cancel_reason = reason or "Restaurant cancelled before prep time"
+            notification_title = "Order Cancelled"
+            notification_message = "Your order has been cancelled by the restaurant."
+
+        # If cancellation happens after prep time (delivery failed)
+        else:
+            delivery.status = Delivery.STATUS_TYPE.DELIVERY_FAILED
+            delivery.cancel_reason = reason or "Cancelled after prep time"
+            notification_title = "Delivery Failed"
+            notification_message = "We couldn’t process your delivery. You’ll receive a full refund."
+
         delivery.save()
-        return Response({"message": "delivery canceled!"}, status=status.HTTP_200_OK)
+        # Send push notification to consumer
+        customer_info = delivery.customer_info
+        user_id = customer_info.get("user_id")  # Make sure you store user_id inside customer_info while placing order
+
+        if user_id:
+            tokens = list(TokenFCM.objects.filter(user_id=user_id).values_list('token', flat=True))
+            if tokens:
+                data = {
+                    "campaign_title": notification_title,
+                    "campaign_message": notification_message,
+                }
+                send_push_notification(tokens, data)
+        return Response({"message": "delivery cancelled successfully."}, status=status.HTTP_200_OK)
+
+        # delivery = Delivery.objects.get(uid=uid)
+        # delivery.status = Delivery.STATUS_TYPE.CANCELED
+        # delivery.reason = reason
+        # delivery.save()
+        # return Response({"message": "delivery canceled!"}, status=status.HTTP_200_OK)
       
+
+class BaseDriverCancelDeliveryAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, client_id):
+        delivery = get_object_or_404(Delivery, client_id=client_id, driver=request.user)
+
+        if delivery.status in [
+            Delivery.STATUS_TYPE.ORDER_PICKED_UP,
+            Delivery.STATUS_TYPE.ON_THE_WAY
+        ]:
+            delivery.status = Delivery.STATUS_TYPE.DELIVERY_FAILED
+            delivery.cancel_reason = "Driver cancelled during delivery"
+            delivery.save()
+            # Send notification to customer
+            customer_info = delivery.customer_info
+            user_id = customer_info.get("user_id") 
+           
+            if user_id:
+                tokens = TokenFCM.objects.filter(user_id=user_id).values_list('token', flat=True)
+                tokens = list(tokens)
+                if tokens:
+                    data = {
+                        "campaign_title": "Delivery Failed",
+                        "campaign_message": "The delivery man has some issue, you will get full refund.",
+                    }
+                    send_push_notification(tokens, data)
+
+            # TODO: Send notification to consumer if needed
+            return Response({
+                "message": "The delivery man has some issue, you will get full refund."
+            })
+
+        return Response({"message": "Cannot cancel at this stage."}, status=400)
+
+
+
       
 class BaseAvailableOrdersApiView(APIView):
     permission_classes = [IsAuthenticated]
@@ -462,8 +616,15 @@ class BaseOrderUpdateRetrieveApiView(APIView):
         print(order, 'order--------------->')
         serializer = DeliveryGETSerializer(order, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()
+            # serializer.save()
+            updated_order = serializer.save()
+            #  Apply earning calculation only if delivery is marked as DELIVERY_SUCCESS
+            if updated_order.status == Delivery.STATUS_TYPE.DELIVERY_SUCCESS:
+                updated_order.driver_earning = calculate_total_driver_earning(updated_order)
+                updated_order.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
+        
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
       
 # get the deliveries that's status are order_picked_up
