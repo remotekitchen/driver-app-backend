@@ -51,7 +51,7 @@ class OnTimeGuaranteeService:
 
         try:
             response = requests.post(
-                "http://127.0.0.1:8000/api/reward/v1/reward/issue/",
+                "https://api.chatchefs.com/api/reward/v1/reward/issue/",
                 json=payload,
                 timeout=5
             )

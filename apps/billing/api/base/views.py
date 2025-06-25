@@ -367,7 +367,7 @@ class BaseDriverCancelDeliveryAPIView(APIView):
 
             # Notify Chatchef
             try:
-                requests.post("http://127.0.0.1:8000/api/webhook/v1/raider/", json={
+                requests.post("https://api.chatchefs.com/api/webhook/v1/raider/", json={
                     "event": "status",
                     "client_id": delivery.client_id,
                     "status": delivery.status,
