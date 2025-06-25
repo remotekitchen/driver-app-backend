@@ -79,6 +79,10 @@ INSTALLED_APPS = [
     'apps.firebase',
     'apps.store',
     'apps.voucher',
+
+    # celery
+    'django_celery_results',
+    'django_celery_beat',
 ]
 
 AUTH_USER_MODEL = "accounts.User"
@@ -262,3 +266,22 @@ CHANNEL_LAYERS = {
 CSRF_TRUSTED_ORIGINS = [
     'https://raider.api.chatchefs.com',
 ]
+
+
+
+# CELERY CONFIGURATION
+
+REDIS_HOST = config("REDIS_HOST", default="redis://localhost:6379/0")
+
+CELERY_BROKER_URL = REDIS_HOST
+CELERY_RESULT_BACKEND = "django-db"
+CELERY_CACHE_BACKEND = "django-cache"
+
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+
+CELERY_TIMEZONE = "Asia/Dhaka"   #  BD based
+CELERY_ENABLE_UTC = False
+
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"

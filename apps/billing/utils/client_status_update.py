@@ -17,8 +17,12 @@ def client_status_updater(instance: Delivery):
     print(url, 'url------------>')
     
   
-    print(instance.driver.rider_profile, 'instance.driver')
-    
+    # print(instance.driver.rider_profile, 'instance.driver')
+    if instance.driver:
+        print(instance.driver.rider_profile, 'instance.driver')
+    else:
+        print("No driver assigned yet.")
+
     serializer = DeliveryGETSerializer(instance)
     
     print(serializer.data, 'serializer.data')

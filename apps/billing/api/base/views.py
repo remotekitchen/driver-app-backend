@@ -14,6 +14,8 @@ from django.utils import timezone
 from datetime import timedelta, datetime
 from django.shortcuts import get_object_or_404
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from django.core.mail import send_mail
+from django.conf import settings
 
 from apps.billing.api.base.serializers import (
     BaseCancelDeliverySerializer,
@@ -34,7 +36,17 @@ from django.utils.timezone import now
 from django.db.models import Count, Sum
 from collections import defaultdict
 from django.db.models.functions import TruncDate
+from apps.billing.models import DeliveryEarningConfig
+from apps.billing.utils.earning_calculation import calculate_driver_earning,calculate_total_driver_earning
+from apps.billing.utils.guarantee import OnTimeGuaranteeService
+from apps.firebase.utils.fcm_helper import send_push_notification
+from apps.core.permissions import IsOwnerRoleOrReadOnly
+from apps.firebase.models import TokenFCM
 
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 class BaseCreateDeliveryAPIView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
@@ -62,7 +74,7 @@ class BaseCreateDeliveryAPIView(APIView):
             instance.use_google,
         )
 
-        if distance > 10:
+        if distance > 15:
             return Response(
                 "We can not deliver to this address!",
                 status=status.HTTP_400_BAD_REQUEST,
@@ -76,11 +88,22 @@ class BaseCreateDeliveryAPIView(APIView):
         
         print(instance.pickup_last_time, 'instance.pickup_last_time--------------->')
         
-        # Calculate average speed (in km/h)
-        average_speed_kmh = 12.5  # Midpoint of 10-15 km/h range
+        # # Calculate average speed (in km/h)
+        # average_speed_kmh = 12.5  # Midpoint of 10-15 km/h range
 
-        # Calculate estimated travel time in minutes
-        estimated_travel_time_minutes = (distance / average_speed_kmh) * 60
+        # # Calculate estimated travel time in minutes
+        # estimated_travel_time_minutes = (distance / average_speed_kmh) * 60
+
+        
+        # Load config from DB
+        config = DeliveryEarningConfig.objects.first()
+
+         # If config exists, get estimated_time_per_km, else fallback to 3.5
+        time_per_km_minutes = config.estimated_time_per_km if config else 3.5
+
+        # Now calculate estimated delivery time based on distance
+        estimated_travel_time_minutes = distance * time_per_km_minutes
+
 
         instance.drop_off_latitude = drop_off_pointer.get("lat")
         instance.drop_off_longitude = drop_off_pointer.get("lng")
@@ -89,13 +112,22 @@ class BaseCreateDeliveryAPIView(APIView):
         # instance.driver = driver
         instance.assigned = False
         instance.status = Delivery.STATUS_TYPE.WAITING_FOR_DRIVER
-        instance.est_delivery_completed_time = instance.pickup_last_time + timedelta(minutes=estimated_travel_time_minutes)
+        # instance.est_delivery_completed_time = instance.pickup_last_time + timedelta(minutes=estimated_travel_time_minutes)
+        instance.est_delivery_completed_time = instance.pickup_last_time 
         instance.drop_off_last_time = instance.est_delivery_completed_time
+        
         instance.save()
+        
 
         sr = DeliveryGETSerializer(instance)
+        # Add this to print delivery data
+        import json
+        print("🚚 Delivery Created with Data:")
+        print(json.dumps(sr.data, indent=4, default=str))
+
         print(Response(sr.data), 'Response(sr.data)--------------->')
         return Response(sr.data)
+
 
     def get_lat(self, address, use_google=True):
         if use_google:
@@ -236,11 +268,7 @@ class BaseCreateDeliveryAPIView(APIView):
         return nearby_drivers
 
     def calculate_fees(self, distance):
-        fee_per_km = (
-            DeliveryFee.objects.last().per_km if DeliveryFee.objects.exists() else 10
-        )
-
-        return float("{0:.2f}".format(distance * fee_per_km))
+            return calculate_driver_earning(distance)
 
 
 class BaseCheckAddressAPIView(BaseCreateDeliveryAPIView):
@@ -275,7 +303,7 @@ class BaseCheckAddressAPIView(BaseCreateDeliveryAPIView):
 
         print(distance)
 
-        if distance > 10:
+        if distance > 15:
             return Response(
                 "We can not deliver to this address!",
                 status=status.HTTP_400_BAD_REQUEST,
@@ -301,7 +329,6 @@ class BaseCheckAddressAPIView(BaseCreateDeliveryAPIView):
         print(data, 'data--------------->')
         return Response(data)
 
-
 class BaseCancelDeliveryAPIView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
 
@@ -323,7 +350,40 @@ class BaseCancelDeliveryAPIView(APIView):
         delivery.save()
         return Response({"message": "delivery canceled!"}, status=status.HTTP_200_OK)
       
-      
+
+class BaseDriverCancelDeliveryAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, client_id):
+        delivery = get_object_or_404(Delivery, client_id=client_id, driver=request.user)
+
+        if delivery.status in [
+            Delivery.STATUS_TYPE.ORDER_PICKED_UP,
+            Delivery.STATUS_TYPE.ON_THE_WAY
+        ]:
+            delivery.status = Delivery.STATUS_TYPE.DELIVERY_FAILED
+            delivery.cancel_reason = "Driver cancelled during delivery"
+            delivery.save()
+
+            # Notify Chatchef
+            try:
+                requests.post("http://127.0.0.1:8000/api/webhook/v1/raider/", json={
+                    "event": "status",
+                    "client_id": delivery.client_id,
+                    "status": delivery.status,
+                    "cancel_reason": delivery.cancel_reason,
+                })
+            except Exception as e:
+                print("Failed to notify Chatchef webhook:", str(e))
+
+            return Response({
+                "message": "The delivery man has some issue, you will get full refund."
+            })
+
+        # ❌ If not in cancelable status
+        return Response({"message": "Cannot cancel at this stage."}, status=400)
+
+
 class BaseAvailableOrdersApiView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -460,10 +520,29 @@ class BaseOrderUpdateRetrieveApiView(APIView):
         print(client_id, 'client_id--------------->')
         order = get_object_or_404(Delivery, client_id=client_id, driver=request.user)
         print(order, 'order--------------->')
+        old_status = order.status
         serializer = DeliveryGETSerializer(order, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            
+            updated_instance = serializer.instance  #  This now includes new status and actual_delivery_completed_time
+
+            # If updated to DELIVERY_SUCCESS, check reward eligibility
+            if updated_instance.status == Delivery.STATUS_TYPE.DELIVERY_SUCCESS and old_status != Delivery.STATUS_TYPE.DELIVERY_SUCCESS:
+                try:
+                    logger.info("✅ Call On-Time Guarantee")
+                    OnTimeGuaranteeService(updated_instance).run()
+                except Exception as e:
+                    logger.error(f"❌ On-Time Guarantee failed: {e}")
+
+                earning_result = updated_instance.update_final_earning()
+                updated_instance.save()
+                print(f"✅ Driver earning updated: {updated_instance.driver_earning} BDT with penalty {earning_result['penalty_percentage']}%")
+            
+            # ✅ Refresh and return fresh data
+            updated_instance.refresh_from_db()
+            updated_serializer = DeliveryGETSerializer(updated_instance)
+            return Response(updated_serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
       
 # get the deliveries that's status are order_picked_up
