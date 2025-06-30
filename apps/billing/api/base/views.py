@@ -122,8 +122,8 @@ class BaseCreateDeliveryAPIView(APIView):
         instance.assigned = False
         instance.amount = total_amount
         instance.status = Delivery.STATUS_TYPE.WAITING_FOR_DRIVER
-        # instance.est_delivery_completed_time = instance.pickup_last_time + timedelta(minutes=estimated_travel_time_minutes)
-        instance.est_delivery_completed_time = instance.pickup_last_time 
+        instance.est_delivery_completed_time = instance.pickup_last_time + timedelta(minutes=estimated_travel_time_minutes)
+        # instance.est_delivery_completed_time = instance.pickup_last_time 
         instance.drop_off_last_time = instance.est_delivery_completed_time
         
         instance.save()
