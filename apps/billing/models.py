@@ -158,12 +158,23 @@ class Delivery(BaseModel):
     #     """
     #     self.calculate_driver_earning()  # Call earning calculation before saving
     #     super().save(*args, **kwargs)  # Proceed with saving the instance
+
+   
+
     def update_final_earning(self):
         from apps.billing.utils.earning_calculation import calculate_total_driver_earning  # imported only when called
         result = calculate_total_driver_earning(self)
-        self.driver_earning = result["final_earning"]
-        return result  # Optional: contains final earning and penalty
 
+        # Update the driver_earning field with the calculated final earning
+        self.driver_earning = result["final_earning"]
+
+        # Optionally, update other fields if necessary (e.g., penalty percentage)
+        self.penalty_percentage = result["penalty_percentage"]  # Assuming you want to save the penalty percentage as well
+        
+        # Save the updated instance to persist the changes
+        self.save()
+
+        return result  # Optional: contains final earning and penalty
 
     def __str__(self):
         return f"{self.id} :: {self.client_id}"
