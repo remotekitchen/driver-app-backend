@@ -58,7 +58,12 @@ class BaseCreateDeliveryAPIView(APIView):
         
 
         instance = serializer.instance
+        print("INSTANCE.AMOUNT AFTER SAVE:", instance.amount)
         instance.is_new = True  # ✅ MUST be set before save
+        # distance = instance.distance  # Access the distance from the created instance
+
+        # if distance is None:
+        #     return Response({"error": "Distance is required for delivery."}, status=status.HTTP_400_BAD_REQUEST)
         drop_address = f"{instance.drop_off_address.street_address} {instance.drop_off_address.city} {instance.drop_off_address.state} {instance.drop_off_address.postal_code} {instance.drop_off_address.country} "
         # drop_address = f"{instance.drop_off_address.drop_address}"
         
@@ -84,7 +89,11 @@ class BaseCreateDeliveryAPIView(APIView):
         #     instance.pickup_latitude, instance.pickup_longitude
         # )
 
-        fees = self.calculate_fees(distance)
+        fees = self.calculate_delivery_fee(distance)
+        print("on_time_guarantee_fee BEFORE TOTAL CALCULATION:", instance.on_time_guarantee_fee)
+
+        # Calculate the total amount including item price, fees, and on-time guarantee fee
+        total_amount = instance.amount 
         
         print(instance.pickup_last_time, 'instance.pickup_last_time--------------->')
         
@@ -111,9 +120,10 @@ class BaseCreateDeliveryAPIView(APIView):
         instance.fees = fees
         # instance.driver = driver
         instance.assigned = False
+        instance.amount = total_amount
         instance.status = Delivery.STATUS_TYPE.WAITING_FOR_DRIVER
-        # instance.est_delivery_completed_time = instance.pickup_last_time + timedelta(minutes=estimated_travel_time_minutes)
-        instance.est_delivery_completed_time = instance.pickup_last_time 
+        instance.est_delivery_completed_time = instance.pickup_last_time + timedelta(minutes=estimated_travel_time_minutes)
+        # instance.est_delivery_completed_time = instance.pickup_last_time 
         instance.drop_off_last_time = instance.est_delivery_completed_time
         
         instance.save()
@@ -267,8 +277,17 @@ class BaseCreateDeliveryAPIView(APIView):
 
         return nearby_drivers
 
-    def calculate_fees(self, distance):
-            return calculate_driver_earning(distance)
+    def calculate_delivery_fee(self,distance):
+        """
+        Calculates the delivery fee based on the distance.
+        Free for distances ≤ 3 km, and 25 + (distance - 3) * 12 for distances > 3 km.
+        """
+        if distance <= 3:
+            return 0  # Free delivery for distances ≤ 3 km
+        else:
+            return 25 + (distance - 3) * 12  # Apply the formula for distances > 3 km
+
+
 
 
 class BaseCheckAddressAPIView(BaseCreateDeliveryAPIView):
@@ -320,7 +339,7 @@ class BaseCheckAddressAPIView(BaseCreateDeliveryAPIView):
         #     )
 
         # data.pop("driver")
-        fees = self.calculate_fees(distance)
+        fees = self.calculate_delivery_fee(distance)
 
         data["distance"] = distance
         data["fees"] = fees
@@ -526,7 +545,7 @@ class BaseOrderUpdateRetrieveApiView(APIView):
             serializer.save()
             
             updated_instance = serializer.instance  #  This now includes new status and actual_delivery_completed_time
-
+            
             # If updated to DELIVERY_SUCCESS, check reward eligibility
             if updated_instance.status == Delivery.STATUS_TYPE.DELIVERY_SUCCESS and old_status != Delivery.STATUS_TYPE.DELIVERY_SUCCESS:
                 try:
@@ -536,11 +555,10 @@ class BaseOrderUpdateRetrieveApiView(APIView):
                     logger.error(f"❌ On-Time Guarantee failed: {e}")
 
                 earning_result = updated_instance.update_final_earning()
-                updated_instance.save()
+                # updated_instance.save()
                 print(f"✅ Driver earning updated: {updated_instance.driver_earning} BDT with penalty {earning_result['penalty_percentage']}%")
             
-            # ✅ Refresh and return fresh data
-            updated_instance.refresh_from_db()
+          
             updated_serializer = DeliveryGETSerializer(updated_instance)
             return Response(updated_serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
