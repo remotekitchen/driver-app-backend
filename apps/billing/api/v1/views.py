@@ -10,7 +10,8 @@ from apps.billing.api.base.views import (
     BaseDriverOrderApiView,
     BaseAdminGetAllOrdersApiView,
     BaseDashboardSalesApiView,
-    BaseDeliveryIssueCreateView
+    BaseDeliveryIssueCreateView,
+    BaseDriverCancelDeliveryAPIView
 )
 
 
@@ -50,4 +51,9 @@ class DashboardSalesApiView(BaseDashboardSalesApiView):
     pass
   
 class DeliveryIssueCreateView(BaseDeliveryIssueCreateView):
+    pass
+
+
+
+class DriverCancelDeliveryAPIView(BaseDriverCancelDeliveryAPIView):
     pass
