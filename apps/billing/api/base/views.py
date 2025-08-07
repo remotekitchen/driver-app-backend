@@ -26,6 +26,7 @@ from apps.billing.api.base.serializers import (
     DeliveryIssueSerializer,
 )
 from apps.billing.models import Delivery, DeliveryFee, DeliveryIssue
+from apps.billing.services.haversine_distance import calculate_haversine_distance
 from django.utils.dateparse import parse_date
 
 gmaps = googlemaps.Client(key=config("GOOGLE_MAP_KEY"))
@@ -79,7 +80,7 @@ class BaseCreateDeliveryAPIView(APIView):
             instance.use_google,
         )
 
-        if distance > 15:
+        if distance > 10:
             return Response(
                 "We can not deliver to this address!",
                 status=status.HTTP_400_BAD_REQUEST,
@@ -300,29 +301,52 @@ class BaseCheckAddressAPIView(BaseCreateDeliveryAPIView):
         
         print(data.get("use_google"), 'use_google')
 
-        drop_address = " ".join([
-              data.get("drop_off_address", {}).get("street_address", ""),
-              data.get("drop_off_address", {}).get("city", ""),
-              data.get("drop_off_address", {}).get("state", ""),
-              data.get("drop_off_address", {}).get("postal_code", ""),
-              data.get("drop_off_address", {}).get("country", ""),
-          ]).strip()
+        # drop_address = " ".join([
+        #       data.get("drop_off_address", {}).get("street_address", ""),
+        #       data.get("drop_off_address", {}).get("city", ""),
+        #       data.get("drop_off_address", {}).get("state", ""),
+        #       data.get("drop_off_address", {}).get("postal_code", ""),
+        #       data.get("drop_off_address", {}).get("country", ""),
+        #   ]).strip()
         # drop_address = f"{data.get('drop_off_address').get('drop_address')}"
 
-        drop_off_pointer = self.get_lat(drop_address, data.get("use_google"))
-        print(drop_off_pointer)
+        # drop_off_pointer = self.get_lat(drop_address, data.get("use_google"))
+        # print(drop_off_pointer)
+        drop_lat = data.get("drop_off_latitude")
+        drop_lng = data.get("drop_off_longitude")
+        pickup_lat = data.get("pickup_latitude")
+        pickup_lng = data.get("pickup_longitude")
 
-        distance = self.get_distance_between_coords(
-            drop_off_pointer.get("lat"),
-            drop_off_pointer.get("lng"),
-            data.get("pickup_latitude"),
-            data.get("pickup_longitude"),
-            data.get("use_google"),
+        if not (drop_lat and drop_lng and pickup_lat and pickup_lng):
+            return Response(
+                {"error": "Missing coordinates"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # distance = self.get_distance_between_coords(
+        #     drop_off_pointer.get("lat"),
+        #     drop_off_pointer.get("lng"),
+        #     data.get("pickup_latitude"),
+        #     data.get("pickup_longitude"),
+        #     data.get("use_google"),
+        # )
+        # distance = self.get_distance_between_coords(
+        #     drop_lat,
+        #     drop_lng,
+        #     pickup_lat,
+        #     pickup_lng,
+        #     data.get("use_google"),  # Optional: only needed if you're using Google
+        # )
+        distance = calculate_haversine_distance(
+            pickup_lat,
+            pickup_lng,
+            drop_lat,
+            drop_lng,
         )
 
         print(distance)
 
-        if distance > 15:
+        if distance > 10:
             return Response(
                 "We can not deliver to this address!",
                 status=status.HTTP_400_BAD_REQUEST,
@@ -343,8 +367,8 @@ class BaseCheckAddressAPIView(BaseCreateDeliveryAPIView):
 
         data["distance"] = distance
         data["fees"] = fees
-        data["drop_off_latitude"] = drop_off_pointer.get("lat")
-        data["drop_off_longitude"] = drop_off_pointer.get("lng")
+        # data["drop_off_latitude"] = drop_off_pointer.get("lat")
+        # data["drop_off_longitude"] = drop_off_pointer.get("lng")
         print(data, 'data--------------->')
         return Response(data)
 
