@@ -16,6 +16,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.core.mail import send_mail
 from django.conf import settings
+from decimal import Decimal, ROUND_HALF_UP
 
 from apps.billing.api.base.serializers import (
     BaseCancelDeliverySerializer,
@@ -278,15 +279,25 @@ class BaseCreateDeliveryAPIView(APIView):
 
         return nearby_drivers
 
-    def calculate_delivery_fee(self,distance):
+    def calculate_delivery_fee(self, distance):
         """
-        Calculates the delivery fee based on the distance.
-        Free for distances ≤ 3 km, and 25 + (distance - 3) * 12 for distances > 3 km.
+        Delivery fee:
+        - Free for distances ≤ 3.00 km
+        - Beyond that: ৳10 per km (proportional)
+        Returns an integer taka amount, rounded to the nearest taka (half-up).
         """
-        if distance <= 3:
-            return 0  # Free delivery for distances ≤ 3 km
-        else:
-            return 25 + (distance - 3) * 12  # Apply the formula for distances > 3 km
+        if distance is None:
+            return 0
+
+        try:
+            d_km = float(distance)
+        except (TypeError, ValueError):
+            raise ValueError("Invalid distance value")
+
+        extra_km = max(0.0, d_km - 3.0)
+        fee_dec = (Decimal(str(extra_km)) * Decimal("10")).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+        return int(fee_dec)
+
 
 
 
