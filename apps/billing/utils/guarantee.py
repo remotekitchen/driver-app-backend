@@ -36,12 +36,17 @@ class OnTimeGuaranteeService:
         if not user_id:
             print("❌ No user_id found in customer_info")
             return
+        client_id = getattr(self.delivery, "client_id", None)
+        try:
+            order_id = int(client_id) if client_id is not None else int(self.delivery.id)
+        except Exception:
+            order_id = self.delivery.id
 
         payload = {
             "user_id": user_id,
             "reward_amount": reward_amount,
             "reward_type": "coupon",
-            "order_id": self.delivery.id,
+            "order_id": order_id,
            "expiry_date": (timezone.now() + timedelta(days=7)).date().isoformat()
 
         }
@@ -52,7 +57,7 @@ class OnTimeGuaranteeService:
         try:
             response = requests.post(
                 # "http://127.0.0.1:8000/api/reward/v1/reward/issue/",
-                "https://api.chatchefs.com/api/reward/v1/reward/issue/",
+                "https://api.hungrytiger.chatchefs.com/api/reward/v1/reward/issue/",
                 json=payload,
                 timeout=5
             )

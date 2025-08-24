@@ -54,92 +54,84 @@ class BaseCreateDeliveryAPIView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
 
     def post(self, request, *args, **kwargs):
+        print("call deliver api")
         serializer = DeliveryCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        
+        serializer.save()  # <-- no is_new kwarg
 
         instance = serializer.instance
-        print("INSTANCE.AMOUNT AFTER SAVE:", instance.amount)
-        instance.is_new = True  # ✅ MUST be set before save
-        # distance = instance.distance  # Access the distance from the created instance
 
-        # if distance is None:
-        #     return Response({"error": "Distance is required for delivery."}, status=status.HTTP_400_BAD_REQUEST)
+        print("INSTANCE.AMOUNT AFTER SAVE:", instance.amount)
+        if hasattr(instance, "is_new"):
+            instance.is_new = True
         drop_address = f"{instance.drop_off_address.street_address} {instance.drop_off_address.city} {instance.drop_off_address.state} {instance.drop_off_address.postal_code} {instance.drop_off_address.country} "
-        # drop_address = f"{instance.drop_off_address.drop_address}"
-        
+        lat = instance.drop_off_latitude or request.data.get("drop_off_latitude")
+        lng = instance.drop_off_longitude or request.data.get("drop_off_longitude")
+
         print(drop_address, 'drop_address--------------->')
         print(instance.use_google, 'use_google--------------->')
 
-        drop_off_pointer = self.get_lat(drop_address, instance.use_google)
-        distance = self.get_distance_between_coords(
-            drop_off_pointer.get("lat"),
-            drop_off_pointer.get("lng"),
+        # Geocode only if coords are missing
+        if not (lat and lng):
+            pointer = self.get_lat(drop_address, instance.use_google)
+            if not pointer:
+                return Response({"detail": "Geocoding failed for drop address."}, status=status.HTTP_400_BAD_REQUEST)
+            lat, lng = pointer["lat"], pointer["lng"]
+
+        # Ensure numeric
+        try:
+            lat = float(lat)
+            lng = float(lng)
+        except (TypeError, ValueError):
+            return Response({"detail": "Invalid coordinates."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Same gate as /check-address: Haversine
+        distance = calculate_haversine_distance(
             instance.pickup_latitude,
             instance.pickup_longitude,
-            instance.use_google,
+            lat,
+            lng,
         )
-
+        if distance is None:
+            return Response({"detail": "Distance calculation failed."}, status=status.HTTP_400_BAD_REQUEST)
         if distance > 10:
-            return Response(
-                "We can not deliver to this address!",
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # driver = self.assign_driver_based_on_location(
-        #     instance.pickup_latitude, instance.pickup_longitude
-        # )
+            return Response("We can not deliver to this address!", status=status.HTTP_400_BAD_REQUEST)
 
         fees = self.calculate_delivery_fee(distance)
         print("on_time_guarantee_fee BEFORE TOTAL CALCULATION:", instance.on_time_guarantee_fee)
 
-        # Calculate the total amount including item price, fees, and on-time guarantee fee
-        total_amount = instance.amount 
-        
+        total_amount = instance.amount
         print(instance.pickup_last_time, 'instance.pickup_last_time--------------->')
-        
-        # # Calculate average speed (in km/h)
-        # average_speed_kmh = 12.5  # Midpoint of 10-15 km/h range
 
-        # # Calculate estimated travel time in minutes
-        # estimated_travel_time_minutes = (distance / average_speed_kmh) * 60
-
-        
-        # Load config from DB
+        # ETA uses configured minutes-per-km (kept same)
         config = DeliveryEarningConfig.objects.first()
-
-         # If config exists, get estimated_time_per_km, else fallback to 3.5
         time_per_km_minutes = config.estimated_time_per_km if config else 3.5
-
-        # Now calculate estimated delivery time based on distance
         estimated_travel_time_minutes = distance * time_per_km_minutes
 
-
-        instance.drop_off_latitude = drop_off_pointer.get("lat")
-        instance.drop_off_longitude = drop_off_pointer.get("lng")
+        # Persist fields
+        instance.drop_off_latitude = lat
+        instance.drop_off_longitude = lng
         instance.distance = distance
         instance.fees = fees
-        # instance.driver = driver
         instance.assigned = False
         instance.amount = total_amount
         instance.status = Delivery.STATUS_TYPE.WAITING_FOR_DRIVER
-        instance.est_delivery_completed_time = instance.pickup_last_time + timedelta(minutes=estimated_travel_time_minutes)
-        # instance.est_delivery_completed_time = instance.pickup_last_time 
+
+        # Guard None pickup_last_time
+        from django.utils import timezone
+        base_time = instance.pickup_last_time or timezone.now()
+        instance.est_delivery_completed_time = base_time + timedelta(minutes=estimated_travel_time_minutes)
         instance.drop_off_last_time = instance.est_delivery_completed_time
-        
+
         instance.save()
-        
 
         sr = DeliveryGETSerializer(instance)
-        # Add this to print delivery data
         import json
         print("🚚 Delivery Created with Data:")
         print(json.dumps(sr.data, indent=4, default=str))
 
         print(Response(sr.data), 'Response(sr.data)--------------->')
         return Response(sr.data)
-
 
     def get_lat(self, address, use_google=True):
         if use_google:
@@ -421,7 +413,7 @@ class BaseDriverCancelDeliveryAPIView(APIView):
 
             # Notify Chatchef
             try:
-                requests.post("https://api.chatchefs.com/api/webhook/v1/raider/", json={
+                requests.post("https://api.hungrytiger.chatchefs.com/api/webhook/v1/raider/", json={
                     "event": "status",
                     "client_id": delivery.client_id,
                     "status": delivery.status,
