@@ -30,7 +30,7 @@ def auto_cancel_deliveries_task():
 
                 # 🔔 Notify Chatchef webhook
                 try:
-                    requests.post("https://api.chatchefs.com/api/webhook/v1/raider/", json={
+                    requests.post("https://api.hungrytiger.chatchefs.com/api/webhook/v1/raider/", json={
                         "event": "status",
                         "client_id": delivery.client_id,
                         "status": delivery.status,
