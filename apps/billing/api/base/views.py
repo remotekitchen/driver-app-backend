@@ -647,7 +647,7 @@ class BaseAdminGetAllOrdersApiView(APIView):
             orders = orders.filter(driver_earning__lte=max_earnings)
 
         if restaurant_id and not all_restaurants:
-            orders = orders.filter(order__restaurant_id=restaurant_id)
+            orders = orders.filter(pickup_customer_name__icontains=restaurant_id.strip())
 
         serializer = DeliveryGETSerializer(orders, many=True)
         return Response({"count": orders.count(), "orders": serializer.data})
