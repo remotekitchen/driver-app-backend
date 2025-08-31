@@ -285,11 +285,26 @@ class BaseVehicleAPIView(APIView):
         return Response(data, status=status_code)
       
       
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from django.shortcuts import get_object_or_404
+
 class BaseDriverSessionView(APIView):
     permission_classes = [IsAuthenticated]
 
+    def _is_admin(self, user):
+        return bool(getattr(user, "is_staff", False) or getattr(user, "is_superuser", False))
+
     def post(self, request, *args, **kwargs):
-        serializer = DriverSessionSerializer(data=request.data)
+        # Admin can create for any driver (expects "user" in body).
+        # Non-admin: force user = request.user (ignore any incoming user id).
+        data = request.data.copy()
+        if not self._is_admin(request.user):
+            data["user"] = request.user.id
+
+        serializer = DriverSessionSerializer(data=data, context={"request": request})
         if serializer.is_valid():
             created_session = serializer.save()
             return Response({
@@ -300,21 +315,28 @@ class BaseDriverSessionView(APIView):
 
     def get(self, request, *args, **kwargs):
         user = request.user
-        sessions = DriverSession.objects.filter(user=user)
-        serializer = DriverSessionSerializer(sessions, many=True)
+        if self._is_admin(user):
+            # Admin: list all, optional filter ?user_id=<id>
+            uid = request.query_params.get("user_id")
+            qs = DriverSession.objects.all()
+            if uid:
+                qs = qs.filter(user_id=uid)
+        else:
+            qs = DriverSession.objects.filter(user=user)
+
+        qs = qs.order_by("-created_at")
+        serializer = DriverSessionSerializer(qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def patch(self, request, *args, **kwargs):
         user = request.user
-        session_id = request.data.get("session_id")  # Expecting session_id in request body
-
+        session_id = request.data.get("session_id")
         if not session_id:
             return Response({"error": "session_id is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            session = DriverSession.objects.get(id=session_id, user=user)
-        except DriverSession.DoesNotExist:
-            return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
+        # Admin can edit any; user can edit only own.
+        qs = DriverSession.objects.all() if self._is_admin(user) else DriverSession.objects.filter(user=user)
+        session = get_object_or_404(qs, id=session_id)
 
         is_active = request.data.get("is_active")
         if is_active is None:
@@ -324,13 +346,15 @@ class BaseDriverSessionView(APIView):
             message = "You are already active." if is_active else "You are already offline."
             return Response({"message": message}, status=status.HTTP_200_OK)
 
-        # ✅ Set last_online_time only when becoming active
         session.is_active = is_active
+        update_fields = ["is_active"]
+
         if is_active:
             from django.utils.timezone import now
             session.last_online_time = now()
+            update_fields.append("last_online_time")
 
-        session.save(update_fields=["is_active", "last_online_time"])
+        session.save(update_fields=update_fields)
 
         return Response(
             {
@@ -340,21 +364,20 @@ class BaseDriverSessionView(APIView):
             },
             status=status.HTTP_200_OK
         )
-        
+
     def delete(self, request, *args, **kwargs):
         user = request.user
         session_id = request.data.get("session_id") or request.query_params.get("session_id")
         if not session_id:
             return Response({"error": "session_id is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            session = DriverSession.objects.get(id=session_id, user=user)
-        except DriverSession.DoesNotExist:
-            return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
+        # Admin can delete any; user can delete only own.
+        qs = DriverSession.objects.all() if self._is_admin(user) else DriverSession.objects.filter(user=user)
+        session = get_object_or_404(qs, id=session_id)
 
         session.delete()
-        return Response({"message": "Driver session deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
-
+        # You’re returning a body; use 200 OK to be consistent with HTTP semantics.
+        return Response({"message": "Driver session deleted successfully."}, status=status.HTTP_200_OK)
 
       
 class BaseDriverStatusView(APIView):
