@@ -285,3 +285,48 @@ CELERY_TIMEZONE = "Asia/Dhaka"   #  BD based
 CELERY_ENABLE_UTC = False
 
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+
+
+import os
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+
+LOG_DIR = os.path.join(BASE_DIR, "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "standard": {"format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s"},
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+        },
+        "app_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": os.path.join(LOG_DIR, "app.log"),
+            "maxBytes": 10 * 1024 * 1024,
+            "backupCount": 5,
+            "formatter": "standard",
+        },
+    },
+    "root": {  # catch-all (optional)
+        "handlers": ["console", "app_file"],
+        "level": LOG_LEVEL,
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console", "app_file"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+        # your view/module logger
+        "delivery.checkaddress": {
+            "handlers": ["console", "app_file"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+    },
+}

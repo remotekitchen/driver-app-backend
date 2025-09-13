@@ -46,9 +46,9 @@ from apps.core.permissions import IsOwnerRoleOrReadOnly
 from apps.firebase.models import TokenFCM
 
 
-import logging
+import logging, json
+logger = logging.getLogger("delivery.checkaddress")
 
-logger = logging.getLogger(__name__)
 
 class BaseCreateDeliveryAPIView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
@@ -291,89 +291,135 @@ class BaseCreateDeliveryAPIView(APIView):
         return int(fee_dec)
 
 
-
-
-
 class BaseCheckAddressAPIView(BaseCreateDeliveryAPIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
 
     def post(self, request):
         serializer = CheckAddressSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        data = serializer.data.copy()
-        
-        print(data.get("use_google"), 'use_google')
+        data = serializer.validated_data.copy()  # exact inputs, no serializer transforms
 
-        # drop_address = " ".join([
-        #       data.get("drop_off_address", {}).get("street_address", ""),
-        #       data.get("drop_off_address", {}).get("city", ""),
-        #       data.get("drop_off_address", {}).get("state", ""),
-        #       data.get("drop_off_address", {}).get("postal_code", ""),
-        #       data.get("drop_off_address", {}).get("country", ""),
-        #   ]).strip()
-        # drop_address = f"{data.get('drop_off_address').get('drop_address')}"
+        def _f(x):
+            try: return float(x)
+            except (TypeError, ValueError): return None
 
-        # drop_off_pointer = self.get_lat(drop_address, data.get("use_google"))
-        # print(drop_off_pointer)
-        drop_lat = data.get("drop_off_latitude")
-        drop_lng = data.get("drop_off_longitude")
-        pickup_lat = data.get("pickup_latitude")
-        pickup_lng = data.get("pickup_longitude")
+        logger.info("CheckAddress payload (raw): %s", json.dumps(data, default=str)[:2000])
 
-        if not (drop_lat and drop_lng and pickup_lat and pickup_lng):
-            return Response(
-                {"error": "Missing coordinates"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        drop_lat   = _f(data.get("drop_off_latitude"))
+        drop_lng   = _f(data.get("drop_off_longitude"))
+        pickup_lat = _f(data.get("pickup_latitude"))
+        pickup_lng = _f(data.get("pickup_longitude"))
 
-        # distance = self.get_distance_between_coords(
-        #     drop_off_pointer.get("lat"),
-        #     drop_off_pointer.get("lng"),
-        #     data.get("pickup_latitude"),
-        #     data.get("pickup_longitude"),
-        #     data.get("use_google"),
-        # )
-        # distance = self.get_distance_between_coords(
-        #     drop_lat,
-        #     drop_lng,
-        #     pickup_lat,
-        #     pickup_lng,
-        #     data.get("use_google"),  # Optional: only needed if you're using Google
-        # )
-        distance = calculate_haversine_distance(
-            pickup_lat,
-            pickup_lng,
-            drop_lat,
-            drop_lng,
-        )
+        logger.info("coords pickup=(%s,%s) drop=(%s,%s)", pickup_lat, pickup_lng, drop_lat, drop_lng)
 
-        print(distance)
+        if None in (drop_lat, drop_lng, pickup_lat, pickup_lng):
+            return Response({"error": "Missing coordinates"}, status=status.HTTP_400_BAD_REQUEST)
 
-        if distance > 10:
-            return Response(
-                "We can not deliver to this address!",
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        distance = calculate_haversine_distance(pickup_lat, pickup_lng, drop_lat, drop_lng)
+        if distance is None or not isinstance(distance, (int, float)):
+            return Response({"error": "Failed to compute distance"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # driver = self.assign_driver_based_on_location(
-        #     data.get("pickup_latitude"), data.get("pickup_longitude")
-        # )
+        if float(distance) > 10:
+            return Response("We can not deliver to this address!", status=status.HTTP_400_BAD_REQUEST)
 
-        # if not driver:
-        #     return Response(
-        #         "We can not deliver to this address!",
-        #         status=status.HTTP_400_BAD_REQUEST,
-        #     )
-
-        # data.pop("driver")
         fees = self.calculate_delivery_fee(distance)
 
-        data["distance"] = distance
-        data["fees"] = fees
-        # data["drop_off_latitude"] = drop_off_pointer.get("lat")
-        # data["drop_off_longitude"] = drop_off_pointer.get("lng")
-        print(data, 'data--------------->')
-        return Response(data)
+        resp = {
+            **data,
+            "pickup_latitude": pickup_lat,
+            "pickup_longitude": pickup_lng,
+            "drop_off_latitude": drop_lat,
+            "drop_off_longitude": drop_lng,
+            "use_google": False,
+            "distance": round(float(distance), 3),
+            "fees": round(float(fees), 2),
+        }
+
+        logger.info("response body: %s", json.dumps(resp, default=str)[:2000])
+        return Response(resp)
+
+
+
+# class BaseCheckAddressAPIView(BaseCreateDeliveryAPIView):
+#     permission_classes = [IsAuthenticated, IsAdminUser]
+
+#     def post(self, request):
+#         serializer = CheckAddressSerializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+#         data = serializer.data.copy()
+        
+#         print(data.get("use_google"), 'use_google')
+
+#         # drop_address = " ".join([
+#         #       data.get("drop_off_address", {}).get("street_address", ""),
+#         #       data.get("drop_off_address", {}).get("city", ""),
+#         #       data.get("drop_off_address", {}).get("state", ""),
+#         #       data.get("drop_off_address", {}).get("postal_code", ""),
+#         #       data.get("drop_off_address", {}).get("country", ""),
+#         #   ]).strip()
+#         # drop_address = f"{data.get('drop_off_address').get('drop_address')}"
+
+#         # drop_off_pointer = self.get_lat(drop_address, data.get("use_google"))
+#         # print(drop_off_pointer)
+#         drop_lat = data.get("drop_off_latitude")
+#         drop_lng = data.get("drop_off_longitude")
+#         pickup_lat = data.get("pickup_latitude")
+#         pickup_lng = data.get("pickup_longitude")
+
+#         if not (drop_lat and drop_lng and pickup_lat and pickup_lng):
+#             return Response(
+#                 {"error": "Missing coordinates"},
+#                 status=status.HTTP_400_BAD_REQUEST,
+#             )
+
+#         # distance = self.get_distance_between_coords(
+#         #     drop_off_pointer.get("lat"),
+#         #     drop_off_pointer.get("lng"),
+#         #     data.get("pickup_latitude"),
+#         #     data.get("pickup_longitude"),
+#         #     data.get("use_google"),
+#         # )
+#         # distance = self.get_distance_between_coords(
+#         #     drop_lat,
+#         #     drop_lng,
+#         #     pickup_lat,
+#         #     pickup_lng,
+#         #     data.get("use_google"),  # Optional: only needed if you're using Google
+#         # )
+#         distance = calculate_haversine_distance(
+#             pickup_lat,
+#             pickup_lng,
+#             drop_lat,
+#             drop_lng,
+#         )
+
+#         print(distance)
+
+#         if distance > 10:
+#             return Response(
+#                 "We can not deliver to this address!",
+#                 status=status.HTTP_400_BAD_REQUEST,
+#             )
+
+#         # driver = self.assign_driver_based_on_location(
+#         #     data.get("pickup_latitude"), data.get("pickup_longitude")
+#         # )
+
+#         # if not driver:
+#         #     return Response(
+#         #         "We can not deliver to this address!",
+#         #         status=status.HTTP_400_BAD_REQUEST,
+#         #     )
+
+#         # data.pop("driver")
+#         fees = self.calculate_delivery_fee(distance)
+
+#         data["distance"] = distance
+#         data["fees"] = fees
+#         # data["drop_off_latitude"] = drop_off_pointer.get("lat")
+#         # data["drop_off_longitude"] = drop_off_pointer.get("lng")
+#         print(data, 'data--------------->')
+#         return Response(data)
 
 class BaseCancelDeliveryAPIView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
