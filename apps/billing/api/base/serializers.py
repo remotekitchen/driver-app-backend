@@ -204,3 +204,18 @@ class DeliveryIssueSerializer(serializers.ModelSerializer):
             })
 
         return attrs
+    
+
+
+
+class DeliveryTrackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Delivery
+        fields = [
+            "id",
+            "client_id",
+            "status",
+            "rider_accepted_time",
+            "rider_pickup_time",
+            "actual_delivery_completed_time",
+        ]
