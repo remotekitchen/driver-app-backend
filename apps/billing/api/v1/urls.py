@@ -15,7 +15,7 @@ from apps.billing.api.v1.views import (
     DeliveryIssueCreateView,
     DriverCancelDeliveryAPIView
 )
-
+from apps.billing.api.base.views import DeliveryTrackingView
 urlpatterns = [
     path("create-delivery/", CreateDeliveryAPIView.as_view()),
     path("check-address/", CheckAddressAPIView.as_view()),
@@ -31,4 +31,5 @@ urlpatterns = [
     path("admin-orders/", AdminGetAllOrdersApiView.as_view()),
     path("dashboard-sales/", DashboardSalesApiView.as_view()),
     path("delivery-issue/", DeliveryIssueCreateView.as_view()),
+    path("deliveries/tracking", DeliveryTrackingView.as_view(), name="delivery-tracking"),
 ]

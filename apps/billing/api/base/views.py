@@ -24,7 +24,7 @@ from apps.billing.api.base.serializers import (
     DeliveryCreateSerializer,
     DeliveryGETSerializer,
     DashboardSerializer,
-    DeliveryIssueSerializer,
+    DeliveryIssueSerializer,DeliveryTrackSerializer
 )
 from apps.billing.models import Delivery, DeliveryFee, DeliveryIssue
 from apps.billing.services.haversine_distance import calculate_haversine_distance
@@ -44,7 +44,7 @@ from apps.billing.utils.guarantee import OnTimeGuaranteeService
 from apps.firebase.utils.fcm_helper import send_push_notification
 from apps.core.permissions import IsOwnerRoleOrReadOnly
 from apps.firebase.models import TokenFCM
-
+from django.db.models import OuterRef, Subquery
 
 import logging, json
 logger = logging.getLogger("delivery.checkaddress")
@@ -1024,3 +1024,46 @@ class BaseDeliveryIssueCreateView(APIView):
         issue.delete()
         return Response({"message": "Delivery issue deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
     
+
+
+
+
+class DeliveryTrackingView(APIView):
+    """
+    GET /api/v1/deliveries/tracking?client_id=ABC
+      - If client_id provided: return all rows for that client_id (latest first)
+      - Else: return latest row per client_id
+    """
+
+    def get(self, request):
+        client_id = request.query_params.get("client_id")
+
+        if client_id:
+            qs = (Delivery.objects
+                  .filter(client_id=client_id)
+                  .only("id","client_id","status","rider_accepted_time",
+                        "rider_pickup_time","actual_delivery_completed_time")
+                  .order_by("-id"))
+            data = DeliveryTrackSerializer(qs, many=True).data
+            return Response({"client_id": client_id, "results": data}, status=status.HTTP_200_OK)
+
+        # No client_id → latest per client_id
+        latest_id_sq = (Delivery.objects
+                        .filter(client_id=OuterRef("client_id"))
+                        .order_by("-id")
+                        .values("id")[:1])
+
+        # Pull the actual latest Delivery rows for each client_id
+        latest_rows = (Delivery.objects
+                       .filter(id__in=Subquery(
+                           Delivery.objects
+                           .values("client_id")
+                           .annotate(latest_id=Subquery(latest_id_sq))
+                           .values("latest_id")
+                       ))
+                       .only("id","client_id","status","rider_accepted_time",
+                             "rider_pickup_time","actual_delivery_completed_time")
+                       .order_by("client_id"))
+
+        data = DeliveryTrackSerializer(latest_rows, many=True).data
+        return Response({"results": data}, status=status.HTTP_200_OK)
